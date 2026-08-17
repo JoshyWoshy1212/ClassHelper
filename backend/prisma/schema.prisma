@@ -1,0 +1,336 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// 1. 학원(테넌트) & 사용자(인증/권한) 모델
+// ==========================================
+
+enum UserRole {
+  OWNER    // 원장님 (최고 관리자)
+  ADMIN    // 실장/원무 관리자
+  TEACHER  // 강사
+  STAFF    // 조교/직원
+}
+
+model Academy {
+  id             Int      @id @default(autoincrement())
+  name           String   @db.VarChar(100)
+  businessNumber String?  @db.VarChar(20)
+  phoneNumber    String?  @db.VarChar(20)
+  address        String?  @db.VarChar(255)
+  settings       Json?    @db.JsonB // 학원별 알림 설정, 커스텀 옵션 등
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users           User[]
+  students        Student[]
+  classes         Class[]
+  enrollments     Enrollment[]
+  attendances     Attendance[]
+  tuitionInvoices TuitionInvoice[]
+  tuitionPayments TuitionPayment[]
+  classLogs       ClassLog[]
+
+  @@map("academies")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  academyId Int
+  email     String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(50)
+  phone     String?  @db.VarChar(20)
+  role      UserRole @default(TEACHER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy           Academy          @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  taughtClasses     Class[]          @relation("TeacherClasses")
+  classLogs         ClassLog[]       @relation("TeacherClassLogs")
+  processedPayments TuitionPayment[] @relation("ProcessedPayments")
+
+  @@index([academyId, role])
+  @@map("users")
+}
+
+// ==========================================
+// 2. 학생 & 반 & 수강 관리 모델
+// ==========================================
+
+enum StudentStatus {
+  ACTIVE     // 재원
+  ON_LEAVE   // 휴원
+  DISCHARGED // 퇴원
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model Student {
+  id                 Int           @id @default(autoincrement())
+  academyId          Int
+  name               String        @db.VarChar(50)
+  gender             Gender?
+  birthDate          DateTime?     @db.Date
+  schoolName         String?       @db.VarChar(50)
+  grade              String?       @db.VarChar(20) // 예: 초6, 중2, 고1
+  studentPhone       String?       @db.VarChar(20)
+  parentPhone        String        @db.VarChar(20)
+  parentName         String?       @db.VarChar(50)
+  parentRelationship String?       @db.VarChar(20) // 예: 모, 부, 조부모
+  status             StudentStatus @default(ACTIVE)
+  enrolledAt         DateTime?     @db.Date
+  dischargedAt       DateTime?     @db.Date
+  memo               String?       @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy             Academy              @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  enrollments         Enrollment[]
+  attendances         Attendance[]
+  tuitionInvoices     TuitionInvoice[]
+  homeworkSubmissions HomeworkSubmission[]
+
+  @@index([academyId, status])
+  @@index([academyId, name])
+  @@index([academyId, parentPhone])
+  @@map("students")
+}
+
+enum ClassStatus {
+  ACTIVE   // 운영 중
+  INACTIVE // 임시 휴강
+  CLOSED   // 폐강
+}
+
+model Class {
+  id          Int         @id @default(autoincrement())
+  academyId   Int
+  name        String      @db.VarChar(100)
+  subject     String?     @db.VarChar(50)
+  targetGrade String?     @db.VarChar(20)
+  teacherId   Int?
+  schedule    String?     @db.VarChar(100) // 예: "월/수/금 17:00-19:00"
+  capacity    Int?
+  monthlyFee  Decimal     @default(0) @db.Decimal(12, 2)
+  status      ClassStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy     Academy      @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  teacher     User?        @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  attendances Attendance[]
+  classLogs   ClassLog[]
+
+  @@index([academyId, status])
+  @@index([academyId, teacherId])
+  @@map("classes")
+}
+
+enum EnrollmentStatus {
+  ENROLLED  // 수강 중
+  COMPLETED // 수강 완료 (종강)
+  DROPPED   // 중도 하차
+  PAUSED    // 수강 일시 정지
+}
+
+model Enrollment {
+  id        Int              @id @default(autoincrement())
+  academyId Int
+  studentId Int
+  classId   Int
+  startDate DateTime         @db.Date
+  endDate   DateTime?        @db.Date
+  status    EnrollmentStatus @default(ENROLLED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, startDate])
+  @@index([academyId, status])
+  @@index([classId, status])
+  @@index([studentId, status])
+  @@map("enrollments")
+}
+
+// ==========================================
+// 3. 일별 출결 관리 모델
+// ==========================================
+
+enum AttendanceStatus {
+  PRESENT     // 출석
+  ABSENT      // 결석
+  LATE        // 지각
+  EARLY_LEAVE // 조퇴
+}
+
+model Attendance {
+  id                BigInt           @id @default(autoincrement())
+  academyId         Int
+  studentId         Int
+  classId           Int
+  date              DateTime         @db.Date
+  status            AttendanceStatus @default(PRESENT)
+  checkInTime       DateTime?
+  checkOutTime      DateTime?
+  reason            String?          @db.VarChar(255)
+  isMakeupNeeded    Boolean          @default(false)
+  isMakeupCompleted Boolean          @default(false)
+  memo              String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, date])
+  @@index([academyId, date])
+  @@index([classId, date])
+  @@index([studentId, date])
+  @@map("attendances")
+}
+
+// ==========================================
+// 4. 수강료 청구 및 수납 관리 모델
+// ==========================================
+
+enum InvoiceStatus {
+  UNPAID         // 미납
+  PARTIALLY_PAID // 부분 수납
+  PAID           // 완납
+  VOID           // 취소/무효
+}
+
+model TuitionInvoice {
+  id               Int           @id @default(autoincrement())
+  academyId        Int
+  studentId        Int
+  billingYearMonth String        @db.VarChar(7) // "YYYY-MM" (예: "2026-09")
+  originalAmount   Decimal       @db.Decimal(12, 2)
+  discountAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  finalAmount      Decimal       @db.Decimal(12, 2)
+  paidAmount       Decimal       @default(0) @db.Decimal(12, 2)
+  status           InvoiceStatus @default(UNPAID)
+  dueDate          DateTime      @db.Date
+  description      String?       @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy  Academy          @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  student  Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  payments TuitionPayment[]
+
+  @@index([academyId, billingYearMonth])
+  @@index([academyId, status])
+  @@index([studentId, billingYearMonth])
+  @@map("tuition_invoices")
+}
+
+enum PaymentMethod {
+  CARD          // 신용/체크카드
+  CASH          // 현금
+  BANK_TRANSFER // 계좌이체
+  EASY_PAY      // 간편결제
+  OTHER         // 기타
+}
+
+model TuitionPayment {
+  id            Int           @id @default(autoincrement())
+  academyId     Int
+  invoiceId     Int
+  amount        Decimal       @db.Decimal(12, 2)
+  method        PaymentMethod @default(CARD)
+  paidAt        DateTime      @default(now())
+  receiptNumber String?       @db.VarChar(100)
+  memo          String?       @db.Text
+  processedById Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy     Academy        @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  invoice     TuitionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  processedBy User?          @relation("ProcessedPayments", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([academyId, paidAt])
+  @@index([invoiceId])
+  @@map("tuition_payments")
+}
+
+// ==========================================
+// 5. 수업 일지 & 진도 & 과제 모델
+// ==========================================
+
+model ClassLog {
+  id            Int      @id @default(autoincrement())
+  academyId     Int
+  classId       Int
+  teacherId     Int
+  date          DateTime @db.Date
+  curriculum    String   @db.VarChar(255) // 교재/진도 범위
+  lessonContent String?  @db.Text         // 수업 내용
+  homework      String?  @db.Text         // 과제 내용
+  notes         String?  @db.Text         // 특이사항
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy             Academy              @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  class               Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher             User                 @relation("TeacherClassLogs", fields: [teacherId], references: [id], onDelete: Cascade)
+  homeworkSubmissions HomeworkSubmission[]
+
+  @@index([academyId, date])
+  @@index([classId, date])
+  @@index([teacherId, date])
+  @@map("class_logs")
+}
+
+enum HomeworkStatus {
+  COMPLETED     // 완료
+  INCOMPLETE    // 미흡
+  NOT_SUBMITTED // 미제출
+  EXCUSED       // 면제
+}
+
+model HomeworkSubmission {
+  id         Int            @id @default(autoincrement())
+  classLogId Int
+  studentId  Int
+  status     HomeworkStatus @default(NOT_SUBMITTED)
+  score      Int?
+  feedback   String?        @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classLog ClassLog @relation(fields: [classLogId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classLogId, studentId])
+  @@index([studentId])
+  @@map("homework_submissions")
+}
