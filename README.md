@@ -17,18 +17,18 @@
 
 ```mermaid
 erDiagram
-    Academy ||--o{ User : "소속 강사/관리자"
-    Academy ||--o{ Student : "원생 관리"
-    Academy ||--o{ Class : "개설 반"
-    
-    User ||--o{ Class : "담당 강사"
-    Class ||--o{ Enrollment : "수강 등록"
-    Student ||--o{ Enrollment : "수강"
-    
-    Enrollment ||--o{ Attendance : "일별 출결"
-    Class ||--o{ ClassLog : "수업 진도/일지"
-    Student ||--o{ TuitionInvoice : "수강료 청구"
-    TuitionInvoice ||--o{ TuitionPayment : "수납 내역"
+    ACADEMY ||--o{ USER : employs
+    ACADEMY ||--o{ STUDENT : manages
+    ACADEMY ||--o{ CLASS : operates
+
+    USER ||--o{ CLASS : teaches
+    CLASS ||--o{ ENROLLMENT : includes
+    STUDENT ||--o{ ENROLLMENT : enrolls
+
+    ENROLLMENT ||--o{ ATTENDANCE : logs
+    CLASS ||--o{ CLASS_LOG : records
+    STUDENT ||--o{ TUITION_INVOICE : billed
+    TUITION_INVOICE ||--o{ TUITION_PAYMENT : settles
 ```
 
 ### 1. 학생 및 반 관리 (`Students & Classes`)
@@ -66,10 +66,10 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    M1["Milestone 1<br/>인증 & 학생/반 관리"] --> M2["Milestone 2<br/>출결 관리 시스템"]
-    M2 --> M3["Milestone 3<br/>수강료/수납 관리"]
-    M3 --> M4["Milestone 4<br/>수업 진도 & 피드백"]
-    M4 --> M5["Milestone 5<br/>학부모 알림 연동"]
+    M1["Milestone 1<br>인증 및 학생/반 관리"] --> M2["Milestone 2<br>출결 관리 시스템"]
+    M2 --> M3["Milestone 3<br>수강료 및 수납 관리"]
+    M3 --> M4["Milestone 4<br>수업 진도 및 피드백"]
+    M4 --> M5["Milestone 5<br>학부모 알림 연동"]
 ```
 
 - **[x] Phase 0**: 프로젝트 요구사항 정의 및 아키텍처/README 수립
