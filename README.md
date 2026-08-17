@@ -1,6 +1,6 @@
 # 🏫 ClassHelper (학원 통합 관리 시스템)
 
-> **ClassHelper**는 학원 원장님과 선생님들이 원생 출결 관리, 수업 진도 및 과제 체크, 수강료 납부 현황 관리 등을 한곳에서 빠르고 간편하게 처리할 수 있도록 지원하는 올인원 학원 통합 관리 플랫폼입니다.
+> **ClassHelper**는 학원 원장님과 선생님들이 원생 출결 관리, 수업 진도 및 과제 체크, 수강료 납부 현황 관리 등을 한곳에서 빠르고 간편하게 처리할 수 [...]
 
 ---
 
@@ -14,6 +14,11 @@
 ---
 
 ## 🧱 핵심 4대 도메인 설계
+
+![ER diagram rendered via mermaid.ink](https://mermaid.ink/svg/erDiagram%0AACADEMY%20%7C%7C--o%7B%20USER%20%3A%20employs%0AACADEMY%20%7C%7C--o%7B%20STUDENT%20%3A%20manages%0AACADEMY%20%7C%7C--o%7B%20CLASS%20%3A%20operates%0AUSER%20%7C%7C--o%7B%20CLASS%20%3A%20teaches%0ACLASS%20%7C%7C--o%7B%20ENROLLMENT%20%3A%20includes%0ASTUDENT%20%7C%7C--o%7B%20ENROLLMENT%20%3A%20enrolls%0AENROLLMENT%20%7C%7C--o%7B%20ATTENDANCE%20%3A%20logs%0ACLASS%20%7C%7C--o%7B%20CLASS_LOG%20%3A%20records%0ASTUDENT%20%7C%7C--o%7B%20TUITION_INVOICE%20%3A%20billed%0ATUITION_INVOICE%20%7C%7C--o%7B%20TUITION_PAYMENT%20%3A%20settles)
+
+<details>
+<summary>원본 mermaid 코드 (클릭하여 보기)</summary>
 
 ```mermaid
 erDiagram
@@ -30,6 +35,8 @@ erDiagram
     STUDENT ||--o{ TUITION_INVOICE : billed
     TUITION_INVOICE ||--o{ TUITION_PAYMENT : settles
 ```
+
+</details>
 
 ### 1. 학생 및 반 관리 (`Students & Classes`)
 - **학생(Student)**: 이름, 학교/학년, 연락처, 학부모 연락처, 재원 상태(`ACTIVE`, `ON_LEAVE`, `DISCHARGED`)
@@ -64,6 +71,11 @@ erDiagram
 
 ## 🚀 개발 로드맵 (Milestones)
 
+![Milestones flowchart rendered via mermaid.ink](https://mermaid.ink/svg/flowchart%20LR%0AM1%5B%22Milestone%201%3Cbr%3E인증%20및%20학생%2F반%20관리%22%5D%20--%3E%20M2%5B%22Milestone%202%3Cbr%3E출결%20관리%20시스템%22%5D%0AM2%20--%3E%20M3%5B%22Milestone%203%3Cbr%3E수강료%20및%20수납%20관리%22%5D%0AM3%20--%3E%20M4%5B%22Milestone%204%3Cbr%3E수업%20진도%20및%20피드백%22%5D%0AM4%20--%3E%20M5%5B%22Milestone%205%3Cbr%3E학부모%20알림%20연동%22%5D)
+
+<details>
+<summary>원본 mermaid 코드 (클릭하여 보기)</summary>
+
 ```mermaid
 flowchart LR
     M1["Milestone 1<br>인증 및 학생/반 관리"] --> M2["Milestone 2<br>출결 관리 시스템"]
@@ -71,6 +83,8 @@ flowchart LR
     M3 --> M4["Milestone 4<br>수업 진도 및 피드백"]
     M4 --> M5["Milestone 5<br>학부모 알림 연동"]
 ```
+
+</details>
 
 - **[x] Phase 0**: 프로젝트 요구사항 정의 및 아키텍처/README 수립
 - **[ ] Phase 1**: NestJS + Yarn 초기 프로젝트 세팅 및 아키텍처 환경 구축
