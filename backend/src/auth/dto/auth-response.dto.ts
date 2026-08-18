@@ -1,0 +1,58 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+
+export class UserProfileDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 1 })
+  academyId: number;
+
+  @ApiProperty({ example: 'owner@classhelper.kr' })
+  email: string;
+
+  @ApiProperty({ example: '김원장' })
+  name: string;
+
+  @ApiPropertyOptional({ example: '010-1234-5678' })
+  phone?: string | null;
+
+  @ApiProperty({ enum: UserRole, example: UserRole.OWNER })
+  role: UserRole;
+
+  @ApiProperty({ example: '2026-08-18T00:00:00.000Z' })
+  createdAt: Date;
+}
+
+export class AcademySummaryDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: '클래스헬퍼 어학원' })
+  name: string;
+
+  @ApiPropertyOptional({ example: '123-45-67890' })
+  businessNumber?: string | null;
+
+  @ApiPropertyOptional({ example: '02-1234-5678' })
+  phoneNumber?: string | null;
+
+  @ApiPropertyOptional({ example: '서울시 강남구 테헤란로 123' })
+  address?: string | null;
+}
+
+export class AuthResponseDto {
+  @ApiProperty({ description: 'JWT Access Token', example: 'eyJhbGciOiJIUzI1NiIsIn...' })
+  accessToken: string;
+
+  @ApiProperty({ type: UserProfileDto })
+  user: UserProfileDto;
+
+  @ApiProperty({ type: AcademySummaryDto })
+  academy: AcademySummaryDto;
+}
+
+export class UserDetailResponseDto extends UserProfileDto {
+  @ApiProperty({ type: AcademySummaryDto })
+  academy: AcademySummaryDto;
+}
