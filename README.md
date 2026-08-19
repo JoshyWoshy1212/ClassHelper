@@ -122,11 +122,13 @@ graph LR
 - **[x] Phase 0**: 프로젝트 요구사항 정의 및 아키텍처/README 수립
 - **[x] Phase 1**: 모노레포 구조 세팅 및 NestJS + PostgreSQL 16 + Prisma 7 아키텍처 환경 구축
 - **[x] Phase 2**: 확장성 및 멀티테넌시를 고려한 Prisma 스키마 모델링 (Academy, User, Student, Class, Attendance, Tuition, ClassLog)
-- **[ ] Phase 3**: 학생/반 관리 CRUD API 및 관리자/강사 인증 구현
+- **[x] Phase 3-1**: 관리자/강사 JWT 인증 및 RBAC 인가 가드 구현 (완료)
+- **[x] Phase 3-2**: 원생 관리(Students) CRUD API 및 필터/페이징/상태변경 구현 (완료)
+- **[ ] Phase 3-3**: 반(Classes) 개설 및 수강생 매핑(Enrollments) 관리 API 구현
 - **[ ] Phase 4**: 출결 체크 & 일자별 출결 현황 조회 API 구현
 - **[ ] Phase 5**: 수강료 청구 및 수납 처리 API 구현
 - **[ ] Phase 6**: 수업 일지/진도 기록 API 구현
-- **[ ] Phase 7**: Swagger 명세 및 테스트 코드(Unit/E2E) 완성
+- **[ ] Phase 7**: E2E 통합 테스트 및 배포 준비
 
 ---
 
