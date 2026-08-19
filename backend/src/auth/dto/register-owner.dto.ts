@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
 
 export class RegisterOwnerDto {
   // 학원 정보
@@ -29,9 +29,19 @@ export class RegisterOwnerDto {
   @IsNotEmpty({ message: '이메일을 입력해주세요.' })
   email: string;
 
-  @ApiProperty({ description: '비밀번호 (6자 이상)', example: 'password123!' })
+  @ApiProperty({
+    description: '비밀번호 (8자 이상, 영문/숫자/특수문자 포함)',
+    example: 'Password123!',
+  })
   @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다.' })
+  @MinLength(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' })
+  @Matches(
+    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/,
+    {
+      message:
+        '비밀번호는 영문, 숫자, 특수문자(!@#$%^&* 등)를 모두 포함하여 8자 이상이어야 합니다.',
+    },
+  )
   password: string;
 
   @ApiProperty({ description: '원장님 성함', example: '김원장' })

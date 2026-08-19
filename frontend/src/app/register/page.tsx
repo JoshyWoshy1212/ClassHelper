@@ -20,6 +20,11 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
+  Check,
+  X,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import { authService } from '@/lib/auth-service';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -36,8 +41,15 @@ const registerSchema = z
     name: z.string().min(2, { message: '원장님 성함을 입력해주세요.' }),
     email: z.string().email({ message: '올바른 이메일 주소를 입력해주세요.' }),
     phone: z.string().optional(),
-    password: z.string().min(6, { message: '비밀번호는 최소 6자 이상이어야 합니다.' }),
-    confirmPassword: z.string().min(6, { message: '비밀번호 확인을 입력해주세요.' }),
+    password: z
+      .string()
+      .min(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' })
+      .regex(/[A-Za-z]/, { message: '영문자를 최소 1자 이상 포함해야 합니다.' })
+      .regex(/[0-9]/, { message: '숫자를 최소 1자 이상 포함해야 합니다.' })
+      .regex(/[!@#$%^&*(),.?":{}|<>]/, {
+        message: '특수문자(!@#$%^&* 등)를 최소 1자 이상 포함해야 합니다.',
+      }),
+    confirmPassword: z.string().min(1, { message: '비밀번호 확인을 입력해주세요.' }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: '비밀번호가 일치하지 않습니다.',
@@ -52,14 +64,18 @@ export default function RegisterPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
     trigger,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    mode: 'onChange',
     defaultValues: {
       academyName: '',
       businessNumber: '',
@@ -72,6 +88,26 @@ export default function RegisterPage() {
       confirmPassword: '',
     },
   });
+
+  const passwordValue = watch('password') || '';
+
+  // Calculate Password Strength
+  const hasMinLength = passwordValue.length >= 8;
+  const hasLetter = /[A-Za-z]/.test(passwordValue);
+  const hasNumber = /[0-9]/.test(passwordValue);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(passwordValue);
+
+  const strengthScore = [hasMinLength, hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
+
+  const getStrengthInfo = () => {
+    if (passwordValue.length === 0) return { label: '비밀번호를 입력해주세요', color: 'bg-slate-700', text: 'text-slate-400', width: 'w-0' };
+    if (strengthScore <= 1) return { label: '매우 취약 (사용 불가)', color: 'bg-rose-500', text: 'text-rose-400', width: 'w-1/4' };
+    if (strengthScore === 2) return { label: '취약 (사용 불가)', color: 'bg-orange-500', text: 'text-orange-400', width: 'w-2/4' };
+    if (strengthScore === 3) return { label: '보통 (특수문자/숫자 추가 필요)', color: 'bg-amber-500', text: 'text-amber-400', width: 'w-3/4' };
+    return { label: '안전하고 강력함 (사용 가능)', color: 'bg-emerald-500', text: 'text-emerald-400', width: 'w-full' };
+  };
+
+  const strengthInfo = getStrengthInfo();
 
   const handleNextStep = async () => {
     const isValid = await trigger(['academyName', 'businessNumber', 'academyPhone', 'address']);
@@ -332,50 +368,95 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                      비밀번호 (6자 이상) <span className="text-rose-400">*</span>
-                    </label>
-                    <div className="relative rounded-2xl shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <Lock className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="password"
-                        placeholder="비밀번호"
-                        className={`block w-full pl-10 pr-4 py-3 bg-slate-900/80 border ${
-                          errors.password ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
-                        } rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm`}
-                        {...register('password')}
-                      />
+                {/* Password Field with Strength Meter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                    <span>비밀번호 설정 <span className="text-rose-400">*</span></span>
+                    <span className={`text-xs font-semibold ${strengthInfo.text}`}>
+                      {strengthInfo.label}
+                    </span>
+                  </label>
+                  <div className="relative rounded-2xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-5 h-5" />
                     </div>
-                    {errors.password && (
-                      <p className="mt-1.5 text-xs text-rose-400">{errors.password.message}</p>
-                    )}
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="8자 이상, 영문/숫자/특수문자 조합"
+                      className={`block w-full pl-10 pr-11 py-3 bg-slate-900/80 border ${
+                        errors.password ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
+                      } rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm`}
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                      비밀번호 확인 <span className="text-rose-400">*</span>
-                    </label>
-                    <div className="relative rounded-2xl shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <Lock className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="password"
-                        placeholder="비밀번호 재입력"
-                        className={`block w-full pl-10 pr-4 py-3 bg-slate-900/80 border ${
-                          errors.confirmPassword ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
-                        } rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm`}
-                        {...register('confirmPassword')}
-                      />
-                    </div>
-                    {errors.confirmPassword && (
-                      <p className="mt-1.5 text-xs text-rose-400">{errors.confirmPassword.message}</p>
-                    )}
+                  {/* Visual Strength Progress Bar */}
+                  <div className="mt-2 w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${strengthInfo.color} ${strengthInfo.width} transition-all duration-300 rounded-full`}
+                    ></div>
                   </div>
+
+                  {/* 4-point Checklist */}
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-xs text-slate-400">
+                    <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                      {hasMinLength ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
+                      <span>8자 이상</span>
+                    </div>
+                    <div className={`flex items-center gap-1.5 ${hasLetter ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                      {hasLetter ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
+                      <span>영문자 포함</span>
+                    </div>
+                    <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                      {hasNumber ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
+                      <span>숫자 포함</span>
+                    </div>
+                    <div className={`flex items-center gap-1.5 ${hasSpecial ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                      {hasSpecial ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
+                      <span>특수문자(!@#$%^&*) 포함</span>
+                    </div>
+                  </div>
+
+                  {errors.password && (
+                    <p className="mt-1.5 text-xs text-rose-400">{errors.password.message}</p>
+                  )}
+                </div>
+
+                {/* Confirm Password Field */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5">
+                    비밀번호 확인 <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative rounded-2xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="비밀번호 재입력"
+                      className={`block w-full pl-10 pr-11 py-3 bg-slate-900/80 border ${
+                        errors.confirmPassword ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
+                      } rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm`}
+                      {...register('confirmPassword')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="mt-1.5 text-xs text-rose-400">{errors.confirmPassword.message}</p>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -390,8 +471,8 @@ export default function RegisterPage() {
 
                   <button
                     type="submit"
-                    disabled={isLoading}
-                    className="w-2/3 flex justify-center items-center gap-2 py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-500/25 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    disabled={isLoading || strengthScore < 4}
+                    className="w-2/3 flex justify-center items-center gap-2 py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-500/25 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isLoading ? (
                       <>
