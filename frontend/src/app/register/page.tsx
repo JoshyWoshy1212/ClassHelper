@@ -24,7 +24,8 @@ import {
   X,
   Eye,
   EyeOff,
-  ShieldCheck,
+  Info,
+  Sparkles,
 } from 'lucide-react';
 import { authService } from '@/lib/auth-service';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -33,8 +34,8 @@ const registerSchema = z
   .object({
     // 학원 정보
     academyName: z.string().min(2, { message: '학원 이름은 최소 2자 이상이어야 합니다.' }),
+    academyPhone: z.string().min(8, { message: '학원 대표번호를 올바르게 입력해주세요.' }),
     businessNumber: z.string().optional(),
-    academyPhone: z.string().optional(),
     address: z.string().optional(),
 
     // 원장님 계정 정보
@@ -78,8 +79,8 @@ export default function RegisterPage() {
     mode: 'onChange',
     defaultValues: {
       academyName: '',
-      businessNumber: '',
       academyPhone: '',
+      businessNumber: '',
       address: '',
       name: '',
       email: '',
@@ -100,17 +101,21 @@ export default function RegisterPage() {
   const strengthScore = [hasMinLength, hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
 
   const getStrengthInfo = () => {
-    if (passwordValue.length === 0) return { label: '비밀번호를 입력해주세요', color: 'bg-slate-700', text: 'text-slate-400', width: 'w-0' };
-    if (strengthScore <= 1) return { label: '매우 취약 (사용 불가)', color: 'bg-rose-500', text: 'text-rose-400', width: 'w-1/4' };
-    if (strengthScore === 2) return { label: '취약 (사용 불가)', color: 'bg-orange-500', text: 'text-orange-400', width: 'w-2/4' };
-    if (strengthScore === 3) return { label: '보통 (특수문자/숫자 추가 필요)', color: 'bg-amber-500', text: 'text-amber-400', width: 'w-3/4' };
+    if (passwordValue.length === 0)
+      return { label: '비밀번호를 입력해주세요', color: 'bg-slate-700', text: 'text-slate-400', width: 'w-0' };
+    if (strengthScore <= 1)
+      return { label: '매우 취약 (사용 불가)', color: 'bg-rose-500', text: 'text-rose-400', width: 'w-1/4' };
+    if (strengthScore === 2)
+      return { label: '취약 (사용 불가)', color: 'bg-orange-500', text: 'text-orange-400', width: 'w-2/4' };
+    if (strengthScore === 3)
+      return { label: '보통 (특수문자/숫자 추가 필요)', color: 'bg-amber-500', text: 'text-amber-400', width: 'w-3/4' };
     return { label: '안전하고 강력함 (사용 가능)', color: 'bg-emerald-500', text: 'text-emerald-400', width: 'w-full' };
   };
 
   const strengthInfo = getStrengthInfo();
 
   const handleNextStep = async () => {
-    const isValid = await trigger(['academyName', 'businessNumber', 'academyPhone', 'address']);
+    const isValid = await trigger(['academyName', 'academyPhone']);
     if (isValid) {
       setErrorMessage(null);
       setStep(2);
@@ -124,8 +129,8 @@ export default function RegisterPage() {
     try {
       const response = await authService.registerOwner({
         academyName: values.academyName,
-        businessNumber: values.businessNumber || undefined,
         academyPhone: values.academyPhone || undefined,
+        businessNumber: values.businessNumber || undefined,
         address: values.address || undefined,
         name: values.name,
         email: values.email,
@@ -177,11 +182,11 @@ export default function RegisterPage() {
               }`}
             >
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                   step === 1 ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/50' : 'bg-emerald-500 text-white'
                 }`}
               >
-                {step === 2 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
+                {step === 2 ? <Check className="w-4 h-4" /> : '1'}
               </div>
               <span>1. 학원 정보</span>
             </div>
@@ -194,7 +199,7 @@ export default function RegisterPage() {
               }`}
             >
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                   step === 2 ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/50' : 'bg-slate-700 text-slate-400'
                 }`}
               >
@@ -216,9 +221,19 @@ export default function RegisterPage() {
             {/* STEP 1: 학원 기본 정보 */}
             {step === 1 && (
               <div className="space-y-4 animate-in fade-in duration-200">
+                {/* Onboarding Guidance Banner */}
+                <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    선택 항목(사업자번호, 주소)은 지금 작성하지 않아도 가입 후 <span className="font-semibold text-white">[학원 설정]</span>에서 언제든지 등록하실 수 있습니다.
+                  </p>
+                </div>
+
+                {/* Academy Name */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                    학원 명칭 <span className="text-rose-400">*</span>
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                    <span>학원 명칭 <span className="text-rose-400">*</span></span>
+                    <span className="text-[11px] text-slate-400 font-normal">학부모 알림톡 발송처 표기</span>
                   </label>
                   <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -238,45 +253,61 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                      사업자등록번호 (선택)
-                    </label>
-                    <div className="relative rounded-2xl shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="123-45-67890"
-                        className="block w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm"
-                        {...register('businessNumber')}
-                      />
+                {/* Academy Phone Number */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                    <span>학원 대표 전화번호 <span className="text-rose-400">*</span></span>
+                    <span className="text-[11px] text-indigo-300 font-normal">출결 알림톡 발신번호로 사용</span>
+                  </label>
+                  <div className="relative rounded-2xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Phone className="w-5 h-5" />
                     </div>
+                    <input
+                      type="text"
+                      placeholder="02-1234-5678 또는 010-1234-5678"
+                      className={`block w-full pl-10 pr-4 py-3 bg-slate-900/80 border ${
+                        errors.academyPhone ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
+                      } rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm`}
+                      {...register('academyPhone')}
+                    />
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                      학원 대표번호 (선택)
-                    </label>
-                    <div className="relative rounded-2xl shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <Phone className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="02-1234-5678"
-                        className="block w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm"
-                        {...register('academyPhone')}
-                      />
-                    </div>
-                  </div>
+                  {errors.academyPhone && (
+                    <p className="mt-1.5 text-xs text-rose-400">{errors.academyPhone.message}</p>
+                  )}
                 </div>
 
+                {/* Business Registration Number (Optional) */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                    학원 위치 / 주소 (선택)
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                    <span>사업자등록번호</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">
+                      선택 (가입 후 등록 가능)
+                    </span>
+                  </label>
+                  <div className="relative rounded-2xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="123-45-67890 (현금영수증/전자세금계산서 연동용)"
+                      className="block w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm"
+                      {...register('businessNumber')}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    💡 수강료 현금영수증 및 온라인 카드 결제(PG) 연동 시 필요합니다.
+                  </p>
+                </div>
+
+                {/* Academy Address (Optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                    <span>학원 주소 / 위치</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">
+                      선택 (가입 후 등록 가능)
+                    </span>
                   </label>
                   <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -284,17 +315,20 @@ export default function RegisterPage() {
                     </div>
                     <input
                       type="text"
-                      placeholder="서울시 강남구 테헤란로 123"
+                      placeholder="서울시 강남구 테헤란로 123 4층"
                       className="block w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all text-sm"
                       {...register('address')}
                     />
                   </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    💡 학부모용 수강료 영수증 및 수강증 인쇄 시 표기됩니다.
+                  </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="w-full mt-4 flex justify-center items-center gap-2 py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-500/25 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
+                  className="w-full mt-5 flex justify-center items-center gap-2 py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-500/25 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
                 >
                   <span>다음: 원장님 계정 설정</span>
                   <ArrowRight className="w-4 h-4" />
@@ -351,8 +385,9 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                      원장님 휴대폰 (선택)
+                    <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+                      <span>원장님 휴대폰</span>
+                      <span className="text-[11px] text-slate-400">선택</span>
                     </label>
                     <div className="relative rounded-2xl shadow-sm">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
