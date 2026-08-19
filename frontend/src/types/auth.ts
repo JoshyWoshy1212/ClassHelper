@@ -1,8 +1,8 @@
-export type UserRole = 'OWNER' | 'ADMIN' | 'TEACHER' | 'STAFF';
+export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TEACHER' | 'STAFF';
 
 export interface UserProfile {
   id: number;
-  academyId: number;
+  academyId?: number | null;
   email: string;
   name: string;
   phone?: string | null;
@@ -22,7 +22,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: UserProfile;
-  academy: AcademySummary;
+  academy?: AcademySummary | null;
 }
 
 export interface TokensResponse {
@@ -31,5 +31,5 @@ export interface TokensResponse {
 }
 
 export interface UserDetailResponse extends UserProfile {
-  academy: AcademySummary;
+  academy?: AcademySummary | null;
 }

@@ -59,6 +59,11 @@ export default function DashboardPage() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case 'SUPER_ADMIN':
+        return {
+          label: '플랫폼 관리자',
+          color: 'bg-purple-50 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        };
       case 'OWNER':
         return {
           label: '원장님 (OWNER)',
@@ -139,6 +144,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* If SUPER_ADMIN, show button to return to /admin */}
+            {user.role === 'SUPER_ADMIN' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 text-xs font-semibold text-purple-700 dark:text-purple-300 transition-all shadow-2xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>관리자 포털로 돌아가기</span>
+              </Link>
+            )}
+
             {/* Theme Toggle Button */}
             <ThemeToggle />
 
