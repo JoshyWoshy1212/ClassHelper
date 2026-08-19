@@ -1,0 +1,1372 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  GraduationCap,
+  Building2,
+  BookOpen,
+  Users,
+  Plus,
+  Search,
+  Clock,
+  User,
+  CreditCard,
+  Edit3,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Loader2,
+  RefreshCw,
+  LogOut,
+  Calendar,
+  UserPlus,
+  ArrowRight,
+  Sparkles,
+  Phone,
+  ShieldCheck,
+  ChevronDown,
+  PauseCircle,
+} from 'lucide-react';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { authService } from '@/lib/auth-service';
+import {
+  classesService,
+  ClassItem,
+  ClassStatus,
+  EnrollmentItem,
+  EnrollmentStatus,
+} from '@/lib/classes-service';
+import { studentsService, StudentItem } from '@/lib/students-service';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { CustomDatePicker } from '@/components/CustomDatePicker';
+
+export default function ClassesPage() {
+  const router = useRouter();
+  const { user, academy, isAuthenticated, isHydrated, logout } = useAuthStore();
+
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [allStudents, setAllStudents] = useState<StudentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | ClassStatus>('ALL');
+
+  // Class Create / Edit Modal State
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
+  const [classFormData, setClassFormData] = useState({
+    name: '',
+    subject: '',
+    targetGrade: '',
+    schedule: '',
+    capacity: '' as any,
+    monthlyFee: '' as any,
+    status: 'ACTIVE' as ClassStatus,
+  });
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [isSubmittingClass, setIsSubmittingClass] = useState(false);
+  const [classFormError, setClassFormError] = useState<string | null>(null);
+
+  // Enrollment Management Modal State
+  const [selectedClassForEnrollment, setSelectedClassForEnrollment] = useState<ClassItem | null>(null);
+  const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
+  const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
+  const [selectedStudentIdToEnroll, setSelectedStudentIdToEnroll] = useState<string>('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState<string>('');
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState<boolean>(false);
+  const [enrollStartDate, setEnrollStartDate] = useState<string>(
+    new Date().toISOString().split('T')[0],
+  );
+  const [isEnrollingStudent, setIsEnrollingStudent] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+
+  // Click Outside Dropdown Refs
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const studentSearchRef = useRef<HTMLDivElement>(null);
+
+  // Role Badge calculation
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN':
+        return {
+          label: '플랫폼 관리자',
+          color: 'bg-purple-50 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        };
+      case 'OWNER':
+        return {
+          label: '원장님 (OWNER)',
+          color: 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        };
+      case 'ADMIN':
+        return {
+          label: '부원장/실장 (ADMIN)',
+          color: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        };
+      case 'TEACHER':
+        return {
+          label: '강사 (TEACHER)',
+          color: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        };
+      case 'STAFF':
+        return {
+          label: '직원/조교 (STAFF)',
+          color: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+        };
+      default:
+        return {
+          label: role,
+          color: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+        };
+    }
+  };
+
+  const roleBadge = user ? getRoleBadge(user.role) : { label: '', color: '' };
+
+  // Authentication check
+  useEffect(() => {
+    if (isHydrated && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isHydrated, isAuthenticated, router]);
+
+  // Click Outside Listener to Close Dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsStatusDropdownOpen(false);
+      }
+      if (
+        studentSearchRef.current &&
+        !studentSearchRef.current.contains(event.target as Node)
+      ) {
+        setIsStudentDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // ESC Key Modal Close Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isStudentDropdownOpen) {
+          setIsStudentDropdownOpen(false);
+          return;
+        }
+        setIsClassModalOpen(false);
+        setIsEnrollmentModalOpen(false);
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isStudentDropdownOpen]);
+
+  const loadClasses = async () => {
+    setIsLoading(true);
+    try {
+      const response = await classesService.getClasses();
+      setClasses(response.items || []);
+    } catch (err) {
+      console.error('Failed to fetch classes:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadStudents = async () => {
+    try {
+      const response = await studentsService.getStudents({ limit: 100 });
+      setAllStudents(response.items || []);
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadClasses();
+      loadStudents();
+    }
+  }, [isAuthenticated]);
+
+  const handleOpenCreateModal = () => {
+    setEditingClass(null);
+    setClassFormData({
+      name: '',
+      subject: '',
+      targetGrade: '',
+      schedule: '',
+      capacity: '' as any,
+      monthlyFee: '' as any,
+      status: 'ACTIVE',
+    });
+    setIsStatusDropdownOpen(false);
+    setNameError(null);
+    setClassFormError(null);
+    setIsClassModalOpen(true);
+  };
+
+  const handleOpenEditModal = (classItem: ClassItem) => {
+    setEditingClass(classItem);
+    setClassFormData({
+      name: classItem.name,
+      subject: classItem.subject || '',
+      targetGrade: classItem.targetGrade || '',
+      schedule: classItem.schedule || '',
+      capacity: classItem.capacity || ('' as any),
+      monthlyFee: classItem.monthlyFee || ('' as any),
+      status: classItem.status,
+    });
+    setIsStatusDropdownOpen(false);
+    setNameError(null);
+    setClassFormError(null);
+    setIsClassModalOpen(true);
+  };
+
+  const handleSaveClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!classFormData.name.trim()) {
+      setNameError('반 명칭을 입력해주세요.');
+      return;
+    }
+
+    setNameError(null);
+    setIsSubmittingClass(true);
+    setClassFormError(null);
+
+    try {
+      const payload = {
+        name: classFormData.name.trim(),
+        subject: classFormData.subject.trim() || undefined,
+        targetGrade: classFormData.targetGrade.trim() || undefined,
+        schedule: classFormData.schedule.trim() || undefined,
+        capacity: classFormData.capacity ? Number(classFormData.capacity) : undefined,
+        monthlyFee: classFormData.monthlyFee ? Number(classFormData.monthlyFee) : 0,
+        status: classFormData.status,
+      };
+
+      if (editingClass) {
+        await classesService.updateClass(editingClass.id, payload);
+      } else {
+        await classesService.createClass(payload);
+      }
+      setIsClassModalOpen(false);
+      await loadClasses();
+    } catch (err: any) {
+      setClassFormError(
+        err.response?.data?.message || '반 저장 처리 중 오류가 발생했습니다.',
+      );
+    } finally {
+      setIsSubmittingClass(false);
+    }
+  };
+
+  const handleDeleteClass = async (classItem: ClassItem) => {
+    if (!confirm(`[${classItem.name}] 반을 정말 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await classesService.deleteClass(classItem.id);
+      await loadClasses();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '반 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // Open Enrollment Modal
+  const handleOpenEnrollmentModal = async (classItem: ClassItem) => {
+    setSelectedClassForEnrollment(classItem);
+    setIsEnrollmentModalOpen(true);
+    setIsLoadingEnrollments(true);
+    setEnrollError(null);
+    setSelectedStudentIdToEnroll('');
+    setStudentSearchTerm('');
+    setIsStudentDropdownOpen(false);
+
+    try {
+      const data = await classesService.getEnrolledStudents(classItem.id);
+      setEnrollments(data || []);
+    } catch (err) {
+      console.error('Failed to load enrollments:', err);
+    } finally {
+      setIsLoadingEnrollments(false);
+    }
+  };
+
+  // Add student enrollment
+  const handleEnrollStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClassForEnrollment || !selectedStudentIdToEnroll) {
+      setEnrollError('배정할 원생을 검색하여 선택해주세요.');
+      setIsStudentDropdownOpen(true);
+      return;
+    }
+
+    setIsEnrollingStudent(true);
+    setEnrollError(null);
+
+    try {
+      await classesService.enrollStudent(selectedClassForEnrollment.id, {
+        studentId: Number(selectedStudentIdToEnroll),
+        startDate: enrollStartDate.trim() || new Date().toISOString().split('T')[0],
+      });
+
+      // Refresh enrollments & class count
+      const updated = await classesService.getEnrolledStudents(selectedClassForEnrollment.id);
+      setEnrollments(updated || []);
+      setSelectedStudentIdToEnroll('');
+      setStudentSearchTerm('');
+      setIsStudentDropdownOpen(false);
+      await loadClasses();
+    } catch (err: any) {
+      setEnrollError(err.response?.data?.message || '수강 등록 중 오류가 발생했습니다.');
+    } finally {
+      setIsEnrollingStudent(false);
+    }
+  };
+
+  // Change enrollment status (e.g. DROPPED, COMPLETED)
+  const handleUpdateEnrollmentStatus = async (
+    enrollmentId: number,
+    newStatus: EnrollmentStatus,
+  ) => {
+    try {
+      await classesService.updateEnrollment(enrollmentId, { status: newStatus });
+      if (selectedClassForEnrollment) {
+        const updated = await classesService.getEnrolledStudents(selectedClassForEnrollment.id);
+        setEnrollments(updated || []);
+        await loadClasses();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || '수강 상태 변경에 실패했습니다.');
+    }
+  };
+
+  // Remove enrollment
+  const handleRemoveEnrollment = async (enrollmentId: number, studentName: string) => {
+    if (!confirm(`[${studentName}] 학생의 수강 등록을 취소/삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await classesService.removeEnrollment(enrollmentId);
+      if (selectedClassForEnrollment) {
+        const updated = await classesService.getEnrolledStudents(selectedClassForEnrollment.id);
+        setEnrollments(updated || []);
+        await loadClasses();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || '수강 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {}
+    logout();
+    router.push('/login');
+  };
+
+  const getSubjectColor = (subject?: string | null) => {
+    switch (subject) {
+      case '수학':
+        return 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      case '영어':
+        return 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+      case '국어':
+        return 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      case '과학':
+        return 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      default:
+        return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    }
+  };
+
+  const filteredClasses = classes.filter((c) => {
+    const matchesSearch =
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.subject && c.subject.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (c.targetGrade && c.targetGrade.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesStatus = statusFilter === 'ALL' ? true : c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  if (!isHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
+      {/* Top Header - Exact 100% Mirror of Dashboard Header */}
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30 transition-colors shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <Link href="/dashboard" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-xs">
+                <GraduationCap className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                Class<span className="text-indigo-600 dark:text-indigo-400">Helper</span>
+              </span>
+            </Link>
+
+            {academy && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium">
+                <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>{academy.name}</span>
+              </div>
+            )}
+
+            {/* Navigation Tabs */}
+            <nav className="hidden md:flex items-center gap-1 ml-2">
+              <Link
+                href="/dashboard"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                대시보드
+              </Link>
+              <Link
+                href="/classes"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 transition-colors"
+              >
+                반 & 수강생 관리
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* If SUPER_ADMIN, show button to return to /admin */}
+            {user.role === 'SUPER_ADMIN' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs shadow-purple-600/20 transition-all cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                <span>관리자 포털로 돌아가기</span>
+              </Link>
+            )}
+
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
+            {/* User Info */}
+            <div className="hidden md:flex flex-col items-end mr-0.5">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">{user.name}</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">{user.email}</span>
+            </div>
+
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${roleBadge.color}`}
+            >
+              {roleBadge.label}
+            </span>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-2xs"
+            >
+              <LogOut className="w-3.5 h-3.5 text-slate-400" />
+              <span>로그아웃</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Body Section with Dot Vignette Pattern */}
+      <main className="flex-1 relative overflow-hidden py-8">
+        <div className="absolute inset-0 bg-dot-vignette pointer-events-none z-0" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-7">
+          {/* Header Title & Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2">
+                <BookOpen className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Phase 3-3: Classes & Enrollments</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                수업 반 및 수강생 배정 관리
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                과목별, 학년별 반을 개설하고 수강 정원 및 학생 배정을 원스톱으로 관리하세요.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={loadClasses}
+                disabled={isLoading}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-2xs transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>신규 반 개설</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Filters */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Status Tabs */}
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  statusFilter === 'ALL'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                전체 ({classes.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ACTIVE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  statusFilter === 'ACTIVE'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                운영중 ({classes.filter((c) => c.status === 'ACTIVE').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('INACTIVE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  statusFilter === 'INACTIVE'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                임시휴강 ({classes.filter((c) => c.status === 'INACTIVE').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('CLOSED')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  statusFilter === 'CLOSED'
+                    ? 'bg-white dark:bg-slate-900 text-slate-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                폐강 ({classes.filter((c) => c.status === 'CLOSED').length})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <Search className="w-3.5 h-3.5" />
+              </div>
+              <input
+                type="text"
+                placeholder="반 명칭, 과목, 학년 검색"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Classes Grid */}
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs text-slate-500">수업 반 목록을 불러오는 중입니다...</p>
+            </div>
+          ) : filteredClasses.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs">
+              <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                등록된 수업 반이 없습니다.
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-5">
+                새로운 수업 반을 개설하고 원생들을 배정해보세요.
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>첫 번째 반 개설하기</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredClasses.map((c) => {
+                const capacity = c.capacity || 15;
+                const percent = Math.min(Math.round((c.enrolledCount / capacity) * 100), 100);
+
+                return (
+                  <div
+                    key={c.id}
+                    className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Top Badges */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-1.5">
+                          {c.subject && (
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getSubjectColor(c.subject)}`}
+                            >
+                              {c.subject}
+                            </span>
+                          )}
+                          {c.targetGrade && (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                              {c.targetGrade}
+                            </span>
+                          )}
+                        </div>
+
+                        {c.status === 'ACTIVE' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span>운영중</span>
+                          </span>
+                        ) : c.status === 'INACTIVE' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                            <span>휴강</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 text-[10px] font-bold">
+                            <span>폐강</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Class Name */}
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-snug">
+                        {c.name}
+                      </h3>
+
+                      {/* Class Details */}
+                      <div className="mt-4 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                        {c.schedule && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{c.schedule}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>
+                            월 <strong className="text-slate-900 dark:text-white">{c.monthlyFee.toLocaleString()}</strong>원
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Capacity Progress */}
+                      <div className="mt-5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                            <span>수강생 현황</span>
+                          </span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {c.enrolledCount} / {capacity}명{' '}
+                            <span className="text-slate-400 font-normal">({percent}%)</span>
+                          </span>
+                        </div>
+
+                        <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              percent >= 100
+                                ? 'bg-rose-500'
+                                : percent >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-indigo-600'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEnrollmentModal(c)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200 dark:border-indigo-800/80 transition-all cursor-pointer"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>수강생 관리 ({c.enrolledCount})</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(c)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClass(c)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 dark:text-slate-400 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ========================================== */}
+      {/* 1. Class Create / Edit Modal (With ESC & Custom Status UI) */}
+      {/* ========================================== */}
+      {isClassModalOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsClassModalOpen(false);
+              setIsStatusDropdownOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header (Fixed) */}
+            <div className="shrink-0 p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-xs">
+                  <BookOpen className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                    {editingClass ? '수업 반 정보 수정' : '신규 수업 반 개설'}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsClassModalOpen(false);
+                  setIsStatusDropdownOpen(false);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form (Scrollable body + Fixed footer) */}
+            <form onSubmit={handleSaveClass} noValidate className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 text-xs">
+                {classFormError && (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{classFormError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    반 명칭 <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 중등 수학 심화A반"
+                    value={classFormData.name}
+                    onChange={(e) => {
+                      setClassFormData({ ...classFormData, name: e.target.value });
+                      if (nameError) setNameError(null);
+                    }}
+                    className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none transition-all ${
+                      nameError
+                        ? 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500'
+                    }`}
+                  />
+                  {nameError && (
+                    <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1 font-medium animate-in fade-in slide-in-from-top-1 duration-150">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{nameError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      과목
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 수학, 영어, 국어"
+                      value={classFormData.subject}
+                      onChange={(e) => setClassFormData({ ...classFormData, subject: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      대상 학년
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 초6, 중2, 고1"
+                      value={classFormData.targetGrade}
+                      onChange={(e) => setClassFormData({ ...classFormData, targetGrade: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    주간 수업 시간표
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 월/수/금 17:00-19:00"
+                    value={classFormData.schedule}
+                    onChange={(e) => setClassFormData({ ...classFormData, schedule: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      수강 정원 (명)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="예: 15 (명)"
+                      value={classFormData.capacity}
+                      onChange={(e) => setClassFormData({ ...classFormData, capacity: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      월 수강료 (원)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10000"
+                      placeholder="예: 350,000 (원)"
+                      value={classFormData.monthlyFee}
+                      onChange={(e) => setClassFormData({ ...classFormData, monthlyFee: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Refined Custom Status Selector (Expandable in flow) */}
+                <div ref={statusDropdownRef}>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    운영 상태
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <div className="flex items-center gap-2">
+                      {classFormData.status === 'ACTIVE' && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs"></span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            운영중 (정상 개설)
+                          </span>
+                        </>
+                      )}
+                      {classFormData.status === 'INACTIVE' && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            임시휴강
+                          </span>
+                        </>
+                      )}
+                      {classFormData.status === 'CLOSED' && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-rose-500 shadow-xs"></span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            폐강
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 mr-1.5 transition-transform duration-200 ${
+                        isStatusDropdownOpen ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {/* Expandable Status Options */}
+                  {isStatusDropdownOpen && (
+                    <div className="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {/* Option 1: ACTIVE */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClassFormData({ ...classFormData, status: 'ACTIVE' });
+                          setIsStatusDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-2.5 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          classFormData.status === 'ACTIVE'
+                            ? 'bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/80 text-emerald-950 dark:text-emerald-200 shadow-xs'
+                            : 'hover:bg-white/60 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="mt-0.5 w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white">운영중 (정상 개설)</span>
+                            {classFormData.status === 'ACTIVE' && (
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">선택됨</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            원생 배정 및 출결 체크가 정상적으로 가능한 상태입니다.
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Option 2: INACTIVE */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClassFormData({ ...classFormData, status: 'INACTIVE' });
+                          setIsStatusDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-2.5 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          classFormData.status === 'INACTIVE'
+                            ? 'bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/80 text-amber-950 dark:text-amber-200 shadow-xs'
+                            : 'hover:bg-white/60 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="mt-0.5 w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                          <PauseCircle className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white">임시휴강</span>
+                            {classFormData.status === 'INACTIVE' && (
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">선택됨</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            방학, 시험 기간 등 일정 기간 수업을 임시 중단합니다.
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Option 3: CLOSED */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClassFormData({ ...classFormData, status: 'CLOSED' });
+                          setIsStatusDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-2.5 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          classFormData.status === 'CLOSED'
+                            ? 'bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-700/80 text-rose-950 dark:text-rose-200 shadow-xs'
+                            : 'hover:bg-white/60 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="mt-0.5 w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white">폐강</span>
+                            {classFormData.status === 'CLOSED' && (
+                              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">선택됨</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            수업이 종료되어 신규 원생 배정이 차단됩니다.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pinned Fixed Footer */}
+              <div className="shrink-0 p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-900/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsClassModalOpen(false);
+                    setIsStatusDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-xs"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingClass}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm shadow-indigo-600/20 text-xs"
+                >
+                  {isSubmittingClass && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{editingClass ? '수정 완료' : '반 개설하기'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 2. Enrollment Management Modal */}
+      {/* ========================================== */}
+      {isEnrollmentModalOpen && selectedClassForEnrollment && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEnrollmentModalOpen(false);
+              setIsStudentDropdownOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl h-[88vh] max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    [{selectedClassForEnrollment.name}] 수강생 배정 관리
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  현재 수강생: <strong className="text-indigo-600 dark:text-indigo-400">{enrollments.filter(e => e.status === 'ENROLLED').length}</strong> / {selectedClassForEnrollment.capacity || 15}명
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEnrollmentModalOpen(false);
+                  setIsStudentDropdownOpen(false);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs flex-1">
+              {/* Quick Enroll Form (Searchable Autocomplete) */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60">
+                <h4 className="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 mb-2.5">
+                  <UserPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>새로운 원생 수강 등록 (검색 배정)</span>
+                </h4>
+
+                {enrollError && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[11px] flex items-start gap-1.5 animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{enrollError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleEnrollStudent} noValidate className="flex flex-col sm:flex-row gap-2.5">
+                  {/* Searchable Student Autocomplete Combobox */}
+                  <div ref={studentSearchRef} className="relative flex-1">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="원생 이름, 학년, 학교, 연락처 검색..."
+                        value={studentSearchTerm}
+                        onChange={(e) => {
+                          setStudentSearchTerm(e.target.value);
+                          setIsStudentDropdownOpen(true);
+                          if (enrollError) setEnrollError(null);
+                          if (selectedStudentIdToEnroll) {
+                            setSelectedStudentIdToEnroll('');
+                          }
+                        }}
+                        onFocus={() => setIsStudentDropdownOpen(true)}
+                        className={`w-full pl-9 pr-8 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white text-xs placeholder-slate-400 focus:outline-none transition-all ${
+                          enrollError && !selectedStudentIdToEnroll
+                            ? 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20'
+                            : selectedStudentIdToEnroll
+                            ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20 font-semibold'
+                            : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500'
+                        }`}
+                      />
+                      {studentSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStudentSearchTerm('');
+                            setSelectedStudentIdToEnroll('');
+                            setIsStudentDropdownOpen(true);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Autocomplete Dropdown List */}
+                    {isStudentDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                        {allStudents
+                          .filter((s) => s.status === 'ACTIVE')
+                          .filter((s) => {
+                            if (!studentSearchTerm.trim()) return true;
+                            const term = studentSearchTerm.toLowerCase();
+                            return (
+                              s.name.toLowerCase().includes(term) ||
+                              (s.parentPhone && s.parentPhone.includes(term)) ||
+                              (s.studentPhone && s.studentPhone.includes(term)) ||
+                              (s.schoolName && s.schoolName.toLowerCase().includes(term)) ||
+                              (s.grade && s.grade.toLowerCase().includes(term))
+                            );
+                          }).length === 0 ? (
+                          <div className="py-4 text-center text-slate-400 text-xs">
+                            일치하는 원생이 없습니다.
+                          </div>
+                        ) : (
+                          allStudents
+                            .filter((s) => s.status === 'ACTIVE')
+                            .filter((s) => {
+                              if (!studentSearchTerm.trim()) return true;
+                              const term = studentSearchTerm.toLowerCase();
+                              return (
+                                s.name.toLowerCase().includes(term) ||
+                                (s.parentPhone && s.parentPhone.includes(term)) ||
+                                (s.studentPhone && s.studentPhone.includes(term)) ||
+                                (s.schoolName && s.schoolName.toLowerCase().includes(term)) ||
+                                (s.grade && s.grade.toLowerCase().includes(term))
+                              );
+                            })
+                            .map((s) => {
+                              const isAlreadyEnrolled = enrollments.some(
+                                (e) => e.studentId === s.id && e.status === 'ENROLLED',
+                              );
+                              const isSelected = selectedStudentIdToEnroll === String(s.id);
+
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  disabled={isAlreadyEnrolled}
+                                  onClick={() => {
+                                    setSelectedStudentIdToEnroll(String(s.id));
+                                    setStudentSearchTerm(`${s.name} (${s.grade || '학년미기재'}, ${s.schoolName || '학교미기재'})`);
+                                    setIsStudentDropdownOpen(false);
+                                    setEnrollError(null);
+                                  }}
+                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-all cursor-pointer ${
+                                    isAlreadyEnrolled
+                                      ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 text-slate-400'
+                                      : isSelected
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-bold border border-indigo-200 dark:border-indigo-800/80'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                                      {s.name.slice(0, 1)}
+                                    </div>
+                                    <div className="min-w-0 truncate">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-semibold text-slate-900 dark:text-white truncate">
+                                          {s.name}
+                                        </span>
+                                        {(s.grade || s.schoolName) && (
+                                          <span className="text-[10px] text-slate-400 truncate">
+                                            ({s.grade || ''}{s.grade && s.schoolName ? ' • ' : ''}{s.schoolName || ''})
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-[10px] text-slate-400">
+                                        {s.parentPhone || s.studentPhone || '연락처 없음'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    {isAlreadyEnrolled ? (
+                                      <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-normal">
+                                        수강중
+                                      </span>
+                                    ) : isSelected ? (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    ) : null}
+                                  </div>
+                                </button>
+                              );
+                            })
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Floating Date Picker with Direct Keyboard Editing */}
+                  <CustomDatePicker
+                    value={enrollStartDate}
+                    onChange={(val) => setEnrollStartDate(val)}
+                    showTodayShortcut={true}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={isEnrollingStudent || !selectedStudentIdToEnroll}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+                  >
+                    {isEnrollingStudent ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
+                    <span>배정 등록</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Enrolled Students Table */}
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white mb-2.5">
+                  수강 중인 학생 목록 ({enrollments.length}명)
+                </h4>
+
+                {isLoadingEnrollments ? (
+                  <div className="py-8 text-center text-slate-400">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    <span>수강생 목록 로딩 중...</span>
+                  </div>
+                ) : enrollments.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                    현재 이 반에 배정된 학생이 없습니다. 위에서 학생을 배정해주세요.
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
+                          <th className="py-2.5 px-3">학생명</th>
+                          <th className="py-2.5 px-3">학년/학교</th>
+                          <th className="py-2.5 px-3">학부모 연락처</th>
+                          <th className="py-2.5 px-3">수강 시작일</th>
+                          <th className="py-2.5 px-3">수강 상태</th>
+                          <th className="py-2.5 px-3 text-right">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {enrollments.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                              {item.student.name}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">
+                              {item.student.grade || '-'} / {item.student.schoolName || '-'}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">
+                              {item.student.parentPhone}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">
+                              {new Date(item.startDate).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <select
+                                value={item.status}
+                                onChange={(e) =>
+                                  handleUpdateEnrollmentStatus(item.id, e.target.value as EnrollmentStatus)
+                                }
+                                className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${
+                                  item.status === 'ENROLLED'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                    : item.status === 'COMPLETED'
+                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                                }`}
+                              >
+                                <option value="ENROLLED">수강중</option>
+                                <option value="COMPLETED">종강 (수료)</option>
+                                <option value="DROPPED">중도하차 (퇴반)</option>
+                                <option value="PAUSED">일시정지</option>
+                              </select>
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveEnrollment(item.id, item.student.name)}
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEnrollmentModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer"
+              >
+                닫기 (ESC)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

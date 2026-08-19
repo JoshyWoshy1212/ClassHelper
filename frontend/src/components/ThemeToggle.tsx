@@ -10,7 +10,6 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     setMounted(true);
-    // Initial sync
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -21,7 +20,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   if (!mounted) {
     return (
       <div
-        className={`w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ${className}`}
+        className={`w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 ${className}`}
       />
     );
   }
@@ -33,13 +32,12 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       type="button"
       onClick={toggleTheme}
       aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
-      title={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
-      className={`relative p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/80 shadow-2xs transition-all cursor-pointer flex items-center justify-center ${className}`}
+      className={`w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/80 shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ${className}`}
     >
       {isDark ? (
-        <Sun className="w-4 h-4 text-amber-400 animate-in fade-in zoom-in-75 duration-200" />
+        <Sun className="w-4 h-4 text-amber-400" />
       ) : (
-        <Moon className="w-4 h-4 text-indigo-600 animate-in fade-in zoom-in-75 duration-200" />
+        <Moon className="w-4 h-4 text-indigo-600" />
       )}
     </button>
   );

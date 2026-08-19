@@ -177,7 +177,6 @@ export default function AdminPortalPage() {
                 type="button"
                 onClick={handleLogout}
                 className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 dark:text-slate-400 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                title="로그아웃"
               >
                 <LogOut className="w-4 h-4" />
               </button>

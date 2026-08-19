@@ -29,19 +29,23 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, isHydrated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
 
   useEffect(() => {
     if (isHydrated && isAuthenticated) {
-      router.replace('/dashboard');
+      if (user?.role === 'SUPER_ADMIN') {
+        router.replace('/admin');
+      } else {
+        router.replace('/dashboard');
+      }
     }
-  }, [isHydrated, isAuthenticated, router]);
+  }, [isHydrated, isAuthenticated, user, router]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col justify-between selection:bg-indigo-100 selection:text-indigo-900 transition-colors duration-200">
       {/* Top Navbar (Solid background, completely clean without dots) */}
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30 transition-colors shadow-2xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm group-hover:bg-indigo-700 transition-colors">
               <GraduationCap className="w-5 h-5 text-white" />
@@ -52,6 +56,17 @@ export default function HomePage() {
           </Link>
 
           <div className="flex items-center gap-2.5">
+            {/* If SUPER_ADMIN, show button to return to /admin */}
+            {user?.role === 'SUPER_ADMIN' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs shadow-purple-600/20 transition-all cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                <span>관리자 포털로 돌아가기</span>
+              </Link>
+            )}
+
             <ThemeToggle />
 
             <Link
@@ -76,7 +91,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-dot-vignette pointer-events-none z-0" />
 
         {/* Hero Container */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-20 flex flex-col items-center text-center justify-center relative z-10 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-20 flex flex-col items-center text-center justify-center relative z-10 w-full">
           {/* Floating Stat Badges (Left & Right) */}
           <div className="hidden lg:flex items-center gap-2 absolute top-16 left-4 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-md text-xs text-left animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">

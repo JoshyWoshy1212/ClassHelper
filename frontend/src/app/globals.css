@@ -20,6 +20,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Hide scrollbars universally across all browsers while retaining full smooth scroll functionality */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Vignette Surround Dot Pattern: Elegant smaller dots (1.8px) */
 .bg-dot-vignette {
   background-image: radial-gradient(circle, rgba(71, 85, 105, 0.42) 1.8px, transparent 1.8px);
