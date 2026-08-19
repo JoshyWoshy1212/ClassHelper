@@ -41,10 +41,21 @@ export class AcademySummaryDto {
   address?: string | null;
 }
 
-export class AuthResponseDto {
-  @ApiProperty({ description: 'JWT Access Token', example: 'eyJhbGciOiJIUzI1NiIsIn...' })
+export class TokensResponseDto {
+  @ApiProperty({
+    description: 'API 요청용 단기 JWT Access Token (수명: 15분)',
+    example: 'eyJhbGciOiJIUzI1NiIsIn...',
+  })
   accessToken: string;
 
+  @ApiProperty({
+    description: 'Access Token 재발급용 장기 Refresh Token (수명: 7일)',
+    example: 'eyJhbGciOiJIUzI1NiIsIn...',
+  })
+  refreshToken: string;
+}
+
+export class AuthResponseDto extends TokensResponseDto {
   @ApiProperty({ type: UserProfileDto })
   user: UserProfileDto;
 
@@ -55,4 +66,12 @@ export class AuthResponseDto {
 export class UserDetailResponseDto extends UserProfileDto {
   @ApiProperty({ type: AcademySummaryDto })
   academy: AcademySummaryDto;
+}
+
+export class LogoutResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: '성공적으로 로그아웃되었습니다.' })
+  message: string;
 }

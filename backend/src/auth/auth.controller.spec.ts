@@ -8,7 +8,8 @@ describe('AuthController', () => {
   let authService: any;
 
   const mockAuthResponse = {
-    accessToken: 'mocked-jwt-token',
+    accessToken: 'mocked-access-token',
+    refreshToken: 'mocked-refresh-token',
     user: {
       id: 1,
       academyId: 10,
@@ -32,6 +33,11 @@ describe('AuthController', () => {
       registerOwner: jest.fn().mockResolvedValue(mockAuthResponse),
       registerStaff: jest.fn().mockResolvedValue(mockAuthResponse.user),
       login: jest.fn().mockResolvedValue(mockAuthResponse),
+      refreshTokens: jest.fn().mockResolvedValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      }),
+      logout: jest.fn().mockResolvedValue({ success: true, message: '성공적으로 로그아웃되었습니다.' }),
       getMe: jest.fn().mockResolvedValue({ ...mockAuthResponse.user, academy: mockAuthResponse.academy }),
     };
 
@@ -43,7 +49,7 @@ describe('AuthController', () => {
     controller = module.get<AuthController>(AuthController);
   });
 
-  it('registerOwner 호출 시 서비스로 DTO를 전달하고 응답 반환', async () => {
+  it('registerOwner 호출 시 서비스로 DTO를 전달하고 토큰 및 응답 반환', async () => {
     const dto = {
       academyName: '클래스헬퍼 어학원',
       email: 'owner@classhelper.kr',
@@ -76,11 +82,24 @@ describe('AuthController', () => {
     expect(result).toEqual(mockAuthResponse.user);
   });
 
-  it('login 호출 시 서비스로 DTO 전달 후 토큰 반환', async () => {
+  it('login 호출 시 서비스로 DTO 전달 후 토큰 세트 반환', async () => {
     const dto = { email: 'owner@classhelper.kr', password: 'password123!' };
     const result = await controller.login(dto);
     expect(authService.login).toHaveBeenCalledWith(dto);
     expect(result).toEqual(mockAuthResponse);
+  });
+
+  it('refreshTokens 호출 시 Refresh Token DTO를 전달하고 새 토큰 세트 반환', async () => {
+    const dto = { refreshToken: 'mocked-refresh-token' };
+    const result = await controller.refreshTokens(dto);
+    expect(authService.refreshTokens).toHaveBeenCalledWith('mocked-refresh-token');
+    expect(result.accessToken).toBe('new-access-token');
+  });
+
+  it('logout 호출 시 유저 ID로 로그아웃 처리', async () => {
+    const result = await controller.logout(1);
+    expect(authService.logout).toHaveBeenCalledWith(1);
+    expect(result.success).toBe(true);
   });
 
   it('getMe 호출 시 현재 로그인 유저 ID로 상세 정보 반환', async () => {

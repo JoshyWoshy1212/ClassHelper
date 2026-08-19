@@ -100,8 +100,11 @@ src/
 │   ├── strategies/       # Passport JWT 전략
 │   ├── auth.controller.ts
 │   ├── auth.service.ts
-│   └── auth.module.ts
-├── students/             # 원생 관리 도메인 (예정)
+├── students/             # 원생 관리 도메인
+│   ├── dto/              # 원생 등록, 수정, 필터, 응답 DTO
+│   ├── students.controller.ts
+│   ├── students.service.ts
+│   └── students.module.ts
 ├── classes/              # 반 개설 및 수강 관리 도메인 (예정)
 ├── attendance/           # 출결 관리 도메인 (예정)
 ├── tuition/              # 수강료 청구 및 수납 도메인 (예정)

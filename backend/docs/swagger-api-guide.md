@@ -114,7 +114,20 @@ export class CreateStudentDto {
 
 | Method | Endpoint | 접근 권한 | 설명 |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/auth/register-owner` | Public | 학원 신규 개설 & 원장(최고 관리자) 회원가입 |
+| `POST` | `/auth/register-owner` | Public | 학원 신규 개설 & 원장 가입 (Access & Refresh Token 발급) |
 | `POST` | `/auth/register-staff` | `OWNER`, `ADMIN` | 소속 학원에 강사/직원 계정 등록 |
-| `POST` | `/auth/login` | Public | 이메일/비밀번호 로그인 및 JWT 발급 |
+| `POST` | `/auth/login` | Public | 이메일/비밀번호 로그인 (Access 15m & Refresh 7d 발급) |
+| `POST` | `/auth/refresh` | Public | Refresh Token을 이용한 토큰 재발급 (RTR 일회용 교체) |
+| `POST` | `/auth/logout` | Logged In | 로그아웃 (서버 DB의 Refresh Token 삭제 및 무효화) |
 | `GET` | `/auth/me` | Logged In | 현재 로그인 사용자 및 소속 학원 정보 조회 |
+
+### 2. 원생 관리 (`Students`)
+
+| Method | Endpoint | 접근 권한 | 설명 |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/students` | `ALL STAFF` | 원생 신규 등록 (이름, 학부모 연락처 필수) |
+| `GET` | `/students` | Logged In | 원생 목록 검색 및 페이징 조회 (`?search=`, `?status=`, `?grade=`) |
+| `GET` | `/students/:id` | Logged In | 원생 상세 정보 및 수강 중인 반 목록 조회 |
+| `PATCH` | `/students/:id` | `OWNER`, `ADMIN`, `TEACHER` | 원생 기본 인적사항 및 메모 수정 |
+| `PATCH` | `/students/:id/status` | `OWNER`, `ADMIN` | 원생 재원 상태 변경 (`ACTIVE`, `ON_LEAVE`, `DISCHARGED`) |
+| `DELETE` | `/students/:id` | `OWNER`, `ADMIN` | 원생 정보 삭제 |

@@ -18,7 +18,14 @@ import { AuthService } from './auth.service';
 import { RegisterOwnerDto } from './dto/register-owner.dto';
 import { RegisterStaffDto } from './dto/register-staff.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, UserProfileDto, UserDetailResponseDto } from './dto/auth-response.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import {
+  AuthResponseDto,
+  UserProfileDto,
+  UserDetailResponseDto,
+  TokensResponseDto,
+  LogoutResponseDto,
+} from './dto/auth-response.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -33,7 +40,7 @@ export class AuthController {
   @Post('register-owner')
   @ApiOperation({
     summary: '학원 신규 개설 및 원장(최고 관리자) 회원가입',
-    description: '새로운 학원(Academy)과 원장님(OWNER) 계정을 동시에 생성하고 JWT 토큰을 반환합니다.',
+    description: '새로운 학원(Academy)과 원장님(OWNER) 계정을 동시에 생성하고 Access/Refresh Token을 발급합니다.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -80,7 +87,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '로그인',
-    description: '이메일과 비밀번호로 로그인하여 JWT 토큰과 사용자/학원 정보를 발급받습니다.',
+    description: '이메일과 비밀번호로 로그인하여 Access Token(15분) 및 Refresh Token(7일)을 발급받습니다.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -93,6 +100,42 @@ export class AuthController {
   })
   async login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(dto);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '토큰 재발급 (Refresh Token 활용)',
+    description: 'Access Token 만료 시 Refresh Token을 전달하여 새 Access Token과 새 Refresh Token(RTR)을 발급받습니다.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: '토큰 재발급 성공',
+    type: TokensResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: '유효하지 않거나 만료/사용된 Refresh Token',
+  })
+  async refreshTokens(@Body() dto: RefreshTokenDto): Promise<TokensResponseDto> {
+    return this.authService.refreshTokens(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '로그아웃',
+    description: '현재 로그인된 사용자의 DB Refresh Token을 삭제하여 즉각 무효화합니다.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: '로그아웃 성공',
+    type: LogoutResponseDto,
+  })
+  async logout(@CurrentUser('userId') userId: number): Promise<LogoutResponseDto> {
+    return this.authService.logout(userId);
   }
 
   @Get('me')
