@@ -3,7 +3,7 @@ import { UserRole } from '@prisma/client';
 
 export interface CurrentUserPayload {
   userId: number;
-  academyId: number;
+  academyId?: number | null;
   email: string;
   name: string;
   role: UserRole;

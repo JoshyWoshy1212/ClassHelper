@@ -13,20 +13,28 @@ datasource db {
 // 1. 학원(테넌트) & 사용자(인증/권한) 모델
 // ==========================================
 
+enum AcademyStatus {
+  ACTIVE    // 정상 운영
+  SUSPENDED // 일시 정지 (미납/이용제한)
+  PENDING   // 승인 대기
+}
+
 enum UserRole {
-  OWNER    // 원장님 (최고 관리자)
-  ADMIN    // 실장/원무 관리자
-  TEACHER  // 강사
-  STAFF    // 조교/직원
+  SUPER_ADMIN // 플랫폼 총괄 슈퍼 관리자
+  OWNER       // 원장님 (학원 최고 관리자)
+  ADMIN       // 실장/원무 관리자
+  TEACHER     // 강사
+  STAFF       // 조교/직원
 }
 
 model Academy {
-  id             Int      @id @default(autoincrement())
-  name           String   @db.VarChar(100)
-  businessNumber String?  @db.VarChar(20)
-  phoneNumber    String?  @db.VarChar(20)
-  address        String?  @db.VarChar(255)
-  settings       Json?    @db.JsonB // 학원별 알림 설정, 커스텀 옵션 등
+  id             Int           @id @default(autoincrement())
+  name           String        @db.VarChar(100)
+  status         AcademyStatus @default(ACTIVE)
+  businessNumber String?       @db.VarChar(20)
+  phoneNumber    String?       @db.VarChar(20)
+  address        String?       @db.VarChar(255)
+  settings       Json?         @db.JsonB // 학원별 알림 설정, 커스텀 옵션 등
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -40,15 +48,16 @@ model Academy {
   tuitionPayments TuitionPayment[]
   classLogs       ClassLog[]
 
+  @@index([status])
   @@map("academies")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  academyId Int
-  email     String   @unique @db.VarChar(100)
-  password  String   @db.VarChar(255)
-  name      String   @db.VarChar(50)
+  id                 Int      @id @default(autoincrement())
+  academyId          Int?
+  email              String   @unique @db.VarChar(100)
+  password           String   @db.VarChar(255)
+  name               String   @db.VarChar(50)
   phone              String?  @db.VarChar(20)
   role               UserRole @default(TEACHER)
   hashedRefreshToken String?  @map("hashed_refresh_token") @db.VarChar(255)
@@ -56,13 +65,33 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  academy           Academy          @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  academy           Academy?         @relation(fields: [academyId], references: [id], onDelete: Cascade)
   taughtClasses     Class[]          @relation("TeacherClasses")
   classLogs         ClassLog[]       @relation("TeacherClassLogs")
   processedPayments TuitionPayment[] @relation("ProcessedPayments")
+  auditLogs         AuditLog[]       @relation("AdminAuditLogs")
 
   @@index([academyId, role])
+  @@index([role])
   @@map("users")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  adminId    Int
+  action     String   @db.VarChar(100) // 예: "UPDATE_ACADEMY_STATUS", "RESET_USER_PASSWORD", "SUSPEND_ACADEMY"
+  targetType String   @db.VarChar(50)  // 예: "ACADEMY", "USER", "STUDENT", "INVOICE"
+  targetId   String?  @db.VarChar(50)
+  details    Json?    @db.JsonB
+  ipAddress  String?  @db.VarChar(45)
+
+  createdAt DateTime @default(now())
+
+  admin User @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
 }
 
 // ==========================================

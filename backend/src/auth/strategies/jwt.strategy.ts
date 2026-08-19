@@ -7,7 +7,7 @@ import type { CurrentUserPayload } from '../../common/decorators/current-user.de
 
 export interface JwtPayload {
   sub: number;
-  academyId: number;
+  academyId?: number | null;
   email: string;
   name: string;
   role: UserRole;
@@ -27,13 +27,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
-    if (!payload.sub || !payload.academyId) {
+    if (!payload.sub || (!payload.academyId && payload.role !== UserRole.SUPER_ADMIN)) {
       throw new UnauthorizedException('유효하지 않은 토큰입니다.');
     }
 
     return {
       userId: payload.sub,
-      academyId: payload.academyId,
+      academyId: payload.academyId ?? null,
       email: payload.email,
       name: payload.name,
       role: payload.role,

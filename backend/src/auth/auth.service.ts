@@ -222,14 +222,14 @@ export class AuthService {
    */
   private async getTokens(user: {
     id: number;
-    academyId: number;
+    academyId?: number | null;
     email: string;
     name: string;
     role: UserRole;
   }): Promise<TokensResponseDto> {
     const payload = {
       sub: user.id,
-      academyId: user.academyId,
+      academyId: user.academyId ?? null,
       email: user.email,
       name: user.name,
       role: user.role,
@@ -277,7 +277,7 @@ export class AuthService {
 
   private mapToUserProfile(user: {
     id: number;
-    academyId: number;
+    academyId?: number | null;
     email: string;
     name: string;
     phone: string | null;
@@ -286,7 +286,7 @@ export class AuthService {
   }): UserProfileDto {
     return {
       id: user.id,
-      academyId: user.academyId,
+      academyId: user.academyId ?? null,
       email: user.email,
       name: user.name,
       phone: user.phone,
@@ -295,13 +295,16 @@ export class AuthService {
     };
   }
 
-  private mapToAcademySummary(academy: {
+  private mapToAcademySummary(academy?: {
     id: number;
     name: string;
     businessNumber: string | null;
     phoneNumber: string | null;
     address: string | null;
-  }): AcademySummaryDto {
+  } | null): AcademySummaryDto | null {
+    if (!academy) {
+      return null;
+    }
     return {
       id: academy.id,
       name: academy.name,

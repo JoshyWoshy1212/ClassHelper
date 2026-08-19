@@ -5,8 +5,8 @@ export class UserProfileDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ example: 1 })
-  academyId: number;
+  @ApiPropertyOptional({ example: 1 })
+  academyId?: number | null;
 
   @ApiProperty({ example: 'owner@classhelper.kr' })
   email: string;
@@ -59,13 +59,13 @@ export class AuthResponseDto extends TokensResponseDto {
   @ApiProperty({ type: UserProfileDto })
   user: UserProfileDto;
 
-  @ApiProperty({ type: AcademySummaryDto })
-  academy: AcademySummaryDto;
+  @ApiPropertyOptional({ type: AcademySummaryDto })
+  academy?: AcademySummaryDto | null;
 }
 
 export class UserDetailResponseDto extends UserProfileDto {
-  @ApiProperty({ type: AcademySummaryDto })
-  academy: AcademySummaryDto;
+  @ApiPropertyOptional({ type: AcademySummaryDto })
+  academy?: AcademySummaryDto | null;
 }
 
 export class LogoutResponseDto {
