@@ -55,6 +55,14 @@ export class StudentsService {
       academyId,
       ...(query.status && { status: query.status }),
       ...(query.grade && { grade: query.grade }),
+      ...(query.classId && {
+        enrollments: {
+          some: {
+            classId: query.classId,
+            status: 'ENROLLED',
+          },
+        },
+      }),
       ...(query.search && {
         OR: [
           { name: { contains: query.search, mode: 'insensitive' } },
@@ -66,15 +74,41 @@ export class StudentsService {
       }),
     };
 
-    const [total, items] = await Promise.all([
+    const [total, studentsWithEnrollments] = await Promise.all([
       this.prisma.student.count({ where }),
       this.prisma.student.findMany({
         where,
         skip,
         take: limit,
+        include: {
+          enrollments: {
+            where: { status: 'ENROLLED' },
+            include: {
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  subject: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: [{ status: 'asc' }, { name: 'asc' }],
       }),
     ]);
+
+    const items = studentsWithEnrollments.map((s) => {
+      const { enrollments, ...rest } = s;
+      return {
+        ...rest,
+        enrolledClasses: enrollments.map((e) => ({
+          id: e.class.id,
+          name: e.class.name,
+          subject: e.class.subject,
+        })),
+      };
+    });
 
     return {
       items,

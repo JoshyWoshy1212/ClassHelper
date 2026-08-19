@@ -105,30 +105,27 @@ graph TD
 - **API Documentation**: [Swagger (OpenAPI)](https://swagger.io/)
 - **Testing**: [Jest](https://jestjs.io/) & Supertest (Unit / E2E)
 
+### Frontend
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/) + [Turbopack](https://turbo.build/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **HTTP Client**: [Axios](https://axios-http.com/)
+
 ---
 
 ## 🚀 개발 로드맵 (Milestones)
 
-```mermaid
-graph LR
-    M1["1단계: 인증 및 학생/반 관리"] --> M2["2단계: 출결 관리 시스템"]
-    M2 --> M3["3단계: 수강료 및 수납 관리"]
-    M3 --> M4["4단계: 수업 진도 및 피드백"]
-    M4 --> M5["5단계: 학부모 알림 연동"]
-```
-
-</details>
-
 - **[x] Phase 0**: 프로젝트 요구사항 정의 및 아키텍처/README 수립
 - **[x] Phase 1**: 모노레포 구조 세팅 및 NestJS + PostgreSQL 16 + Prisma 7 아키텍처 환경 구축
 - **[x] Phase 2**: 확장성 및 멀티테넌시를 고려한 Prisma 스키마 모델링 (Academy, User, Student, Class, Attendance, Tuition, ClassLog)
-- **[x] Phase 3-1**: 관리자/강사 JWT 인증 및 RBAC 인가 가드 구현 (완료)
-- **[x] Phase 3-2**: 원생 관리(Students) CRUD API 및 필터/페이징/상태변경 구현 (완료)
-- **[ ] Phase 3-3**: 반(Classes) 개설 및 수강생 매핑(Enrollments) 관리 API 구현
-- **[ ] Phase 4**: 출결 체크 & 일자별 출결 현황 조회 API 구현
-- **[ ] Phase 5**: 수강료 청구 및 수납 처리 API 구현
-- **[ ] Phase 6**: 수업 일지/진도 기록 API 구현
-- **[ ] Phase 7**: E2E 통합 테스트 및 배포 준비
+- **[x] Phase 3-1**: 관리자/강사 JWT 인증 및 RBAC 인가, 플랫폼 관리자 포털 & 통합 대시보드 UI (완료)
+- **[x] Phase 3-2**: 원생 관리(Students) CRUD API, 실시간 검색/필터, 스마트 캘린더 연동 및 전용 웹 UI (완료)
+- **[x] Phase 3-3**: 반(Classes) 개설, 스마트 원생 배정(Autocomplete Combobox) 및 수강생 매핑 관리 API & UI (완료)
+- **[ ] Phase 3-4**: 출결 체크(Attendance) 및 카카오 알림톡/문자 발송 엔진
+- **[ ] Phase 3-5**: 수강료 청구 및 수납 처리(Tuition & Payments) API & UI
+- **[ ] Phase 3-6**: 수업 일지/진도 기록 및 과제(ClassLog & Homework) 관리
+- **[ ] Phase 4**: E2E 통합 테스트 및 배포 최적화
 
 ---
 

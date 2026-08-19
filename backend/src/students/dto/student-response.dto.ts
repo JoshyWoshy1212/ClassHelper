@@ -47,6 +47,16 @@ export class StudentResponseDto {
   @ApiPropertyOptional({ example: '특이사항 메모' })
   memo?: string | null;
 
+  @ApiPropertyOptional({
+    description: '현재 수강 중인 수업 반 목록 요약',
+    example: [{ id: 1, name: '중등 수학 심화반', subject: '수학' }],
+  })
+  enrolledClasses?: Array<{
+    id: number;
+    name: string;
+    subject?: string | null;
+  }>;
+
   @ApiProperty({ example: '2026-08-18T00:00:00.000Z' })
   createdAt: Date;
 

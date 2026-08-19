@@ -1,10 +1,19 @@
 import { api } from './api';
 
+export type StudentStatus = 'ACTIVE' | 'ON_LEAVE' | 'DISCHARGED';
+export type Gender = 'MALE' | 'FEMALE';
+
+export interface EnrolledClassBadge {
+  id: number;
+  name: string;
+  subject?: string | null;
+}
+
 export interface StudentItem {
   id: number;
   academyId: number;
   name: string;
-  gender?: string | null;
+  gender?: Gender | null;
   birthDate?: string | null;
   schoolName?: string | null;
   grade?: string | null;
@@ -12,11 +21,61 @@ export interface StudentItem {
   parentPhone: string;
   parentName?: string | null;
   parentRelationship?: string | null;
-  status: 'ACTIVE' | 'ON_LEAVE' | 'DISCHARGED';
+  status: StudentStatus;
   enrolledAt?: string | null;
   dischargedAt?: string | null;
   memo?: string | null;
   createdAt: string;
+  enrolledClasses?: EnrolledClassBadge[];
+}
+
+export interface StudentClassSummary {
+  enrollmentId: number;
+  classId: number;
+  className: string;
+  subject?: string | null;
+  teacherName?: string | null;
+  status: 'ENROLLED' | 'COMPLETED' | 'DROPPED' | 'PAUSED';
+  startDate: string;
+}
+
+export interface StudentDetailItem extends StudentItem {
+  classes: StudentClassSummary[];
+}
+
+export interface CreateStudentDto {
+  name: string;
+  gender?: Gender;
+  birthDate?: string;
+  schoolName?: string;
+  grade?: string;
+  studentPhone?: string;
+  parentPhone: string;
+  parentName?: string;
+  parentRelationship?: string;
+  status?: StudentStatus;
+  enrolledAt?: string;
+  memo?: string;
+}
+
+export interface UpdateStudentDto {
+  name?: string;
+  gender?: Gender;
+  birthDate?: string;
+  schoolName?: string;
+  grade?: string;
+  studentPhone?: string;
+  parentPhone?: string;
+  parentName?: string;
+  parentRelationship?: string;
+  enrolledAt?: string;
+  dischargedAt?: string;
+  memo?: string;
+}
+
+export interface UpdateStudentStatusDto {
+  status: StudentStatus;
+  dischargedAt?: string;
 }
 
 export interface PaginatedStudentsResponse {
@@ -34,10 +93,36 @@ export const studentsService = {
     search?: string;
     status?: string;
     grade?: string;
+    classId?: number;
     page?: number;
     limit?: number;
   }): Promise<PaginatedStudentsResponse> {
     const response = await api.get<PaginatedStudentsResponse>('/students', { params });
+    return response.data;
+  },
+
+  async getStudent(id: number): Promise<StudentDetailItem> {
+    const response = await api.get<StudentDetailItem>(`/students/${id}`);
+    return response.data;
+  },
+
+  async createStudent(dto: CreateStudentDto): Promise<StudentItem> {
+    const response = await api.post<StudentItem>('/students', dto);
+    return response.data;
+  },
+
+  async updateStudent(id: number, dto: UpdateStudentDto): Promise<StudentItem> {
+    const response = await api.patch<StudentItem>(`/students/${id}`, dto);
+    return response.data;
+  },
+
+  async updateStudentStatus(id: number, dto: UpdateStudentStatusDto): Promise<StudentItem> {
+    const response = await api.patch<StudentItem>(`/students/${id}/status`, dto);
+    return response.data;
+  },
+
+  async deleteStudent(id: number): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete<{ success: boolean; message: string }>(`/students/${id}`);
     return response.data;
   },
 };

@@ -166,7 +166,7 @@ export function CustomDatePicker({
   const weekLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
   return (
-    <div ref={containerRef} className={`relative inline-flex items-center gap-1.5 ${className}`}>
+    <div ref={containerRef} className={`relative inline-flex items-center gap-1.5 ${isOpen ? 'z-50' : 'z-20'} ${className}`}>
       {/* Input Group */}
       <div className="relative flex items-center">
         <button
@@ -202,7 +202,7 @@ export function CustomDatePicker({
 
       {/* Floating Custom Calendar Popup (Positioned exactly underneath) */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150 select-none">
+        <div className="absolute top-full left-0 mt-2 z-[60] w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150 select-none">
           {/* Calendar Header: Month/Year & Navigation */}
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <button

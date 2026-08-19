@@ -23,6 +23,12 @@ export class QueryStudentDto {
   @IsOptional()
   grade?: string;
 
+  @ApiPropertyOptional({ description: '수업 반 ID 필터', example: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  classId?: number;
+
   @ApiPropertyOptional({ description: '페이지 번호 (기본값: 1)', default: 1, example: 1 })
   @Type(() => Number)
   @IsInt()
@@ -30,11 +36,11 @@ export class QueryStudentDto {
   @IsOptional()
   page: number = 1;
 
-  @ApiPropertyOptional({ description: '페이지 당 조회 개수 (기본값: 20, 최대: 100)', default: 20, example: 20 })
+  @ApiPropertyOptional({ description: '페이지 당 조회 개수 (기본값: 20, 최대: 1000)', default: 20, example: 20 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(1000)
   @IsOptional()
   limit: number = 20;
 }

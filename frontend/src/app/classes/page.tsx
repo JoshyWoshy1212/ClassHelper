@@ -52,6 +52,9 @@ export default function ClassesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ClassStatus>('ALL');
+  const [subjectFilter, setSubjectFilter] = useState<string>('ALL');
+  const [gradeFilter, setGradeFilter] = useState<string>('ALL');
+  const [dayFilter, setDayFilter] = useState<string>('ALL');
 
   // Class Create / Edit Modal State
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
@@ -78,6 +81,8 @@ export default function ClassesPage() {
   const [selectedStudentIdToEnroll, setSelectedStudentIdToEnroll] = useState<string>('');
   const [studentSearchTerm, setStudentSearchTerm] = useState<string>('');
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState<boolean>(false);
+  const [activeEnrollmentStatusRowId, setActiveEnrollmentStatusRowId] = useState<number | null>(null);
+  const [enrollmentStatusDropdownDirection, setEnrollmentStatusDropdownDirection] = useState<'down' | 'up'>('down');
   const [enrollStartDate, setEnrollStartDate] = useState<string>(
     new Date().toISOString().split('T')[0],
   );
@@ -87,6 +92,7 @@ export default function ClassesPage() {
   // Click Outside Dropdown Refs
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const studentSearchRef = useRef<HTMLDivElement>(null);
+  const enrollmentRowStatusRef = useRef<HTMLDivElement>(null);
 
   // Role Badge calculation
   const getRoleBadge = (role: string) => {
@@ -148,6 +154,12 @@ export default function ClassesPage() {
       ) {
         setIsStudentDropdownOpen(false);
       }
+      if (
+        enrollmentRowStatusRef.current &&
+        !enrollmentRowStatusRef.current.contains(event.target as Node)
+      ) {
+        setActiveEnrollmentStatusRowId(null);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -158,6 +170,10 @@ export default function ClassesPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (activeEnrollmentStatusRowId !== null) {
+          setActiveEnrollmentStatusRowId(null);
+          return;
+        }
         if (isStudentDropdownOpen) {
           setIsStudentDropdownOpen(false);
           return;
@@ -169,7 +185,7 @@ export default function ClassesPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isStudentDropdownOpen]);
+  }, [isStudentDropdownOpen, activeEnrollmentStatusRowId]);
 
   const loadClasses = async () => {
     setIsLoading(true);
@@ -396,12 +412,56 @@ export default function ClassesPage() {
 
   const filteredClasses = classes.filter((c) => {
     const matchesSearch =
+      !searchTerm.trim() ||
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.subject && c.subject.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (c.targetGrade && c.targetGrade.toLowerCase().includes(searchTerm.toLowerCase()));
+      (c.targetGrade && c.targetGrade.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (c.schedule && c.schedule.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus = statusFilter === 'ALL' ? true : c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    const matchesSubject =
+      subjectFilter === 'ALL'
+        ? true
+        : subjectFilter === 'OTHER'
+        ? !c.subject || !['수학', '영어', '국어', '과학'].includes(c.subject)
+        : c.subject === subjectFilter;
+
+    const matchesGrade =
+      gradeFilter === 'ALL'
+        ? true
+        : gradeFilter === 'ELEMENTARY'
+        ? Boolean(c.targetGrade && (c.targetGrade.includes('초') || c.targetGrade.startsWith('1') || c.targetGrade.startsWith('2') || c.targetGrade.startsWith('3') || c.targetGrade.startsWith('4') || c.targetGrade.startsWith('5') || c.targetGrade.startsWith('6')))
+        : gradeFilter === 'MIDDLE'
+        ? Boolean(c.targetGrade && c.targetGrade.includes('중'))
+        : gradeFilter === 'HIGH'
+        ? Boolean(c.targetGrade && c.targetGrade.includes('고'))
+        : true;
+
+    const matchesDay =
+      dayFilter === 'ALL'
+        ? true
+        : dayFilter === 'MON'
+        ? Boolean(c.schedule && c.schedule.includes('월'))
+        : dayFilter === 'TUE'
+        ? Boolean(c.schedule && c.schedule.includes('화'))
+        : dayFilter === 'WED'
+        ? Boolean(c.schedule && c.schedule.includes('수'))
+        : dayFilter === 'THU'
+        ? Boolean(c.schedule && c.schedule.includes('목'))
+        : dayFilter === 'FRI'
+        ? Boolean(c.schedule && c.schedule.includes('금'))
+        : dayFilter === 'SAT'
+        ? Boolean(c.schedule && c.schedule.includes('토'))
+        : dayFilter === 'SUN'
+        ? Boolean(c.schedule && c.schedule.includes('일'))
+        : dayFilter === 'WEEKDAY'
+        ? Boolean(c.schedule && (c.schedule.includes('월') || c.schedule.includes('화') || c.schedule.includes('수') || c.schedule.includes('목') || c.schedule.includes('금') || c.schedule.includes('평일')))
+        : dayFilter === 'WEEKEND'
+        ? Boolean(c.schedule && (c.schedule.includes('토') || c.schedule.includes('일') || c.schedule.includes('주말')))
+        : true;
+
+    return matchesSearch && matchesStatus && matchesSubject && matchesGrade && matchesDay;
   });
 
   if (!isHydrated || !isAuthenticated || !user) {
@@ -441,6 +501,12 @@ export default function ClassesPage() {
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 대시보드
+              </Link>
+              <Link
+                href="/students"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                원생 관리
               </Link>
               <Link
                 href="/classes"
@@ -531,68 +597,176 @@ export default function ClassesPage() {
             </div>
           </div>
 
-          {/* Search & Filters */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-            {/* Status Tabs */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  statusFilter === 'ALL'
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                전체 ({classes.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('ACTIVE')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  statusFilter === 'ACTIVE'
-                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                운영중 ({classes.filter((c) => c.status === 'ACTIVE').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('INACTIVE')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  statusFilter === 'INACTIVE'
-                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                임시휴강 ({classes.filter((c) => c.status === 'INACTIVE').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('CLOSED')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  statusFilter === 'CLOSED'
-                    ? 'bg-white dark:bg-slate-900 text-slate-400 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                폐강 ({classes.filter((c) => c.status === 'CLOSED').length})
-              </button>
+          {/* Search & Filters Card */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
+            {/* Top Row: Search & Status Tabs */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="반 명칭, 과목, 학년, 수업 시간표 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl shrink-0 text-xs font-semibold overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    statusFilter === 'ALL'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  전체 ({classes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ACTIVE')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    statusFilter === 'ACTIVE'
+                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  운영중 ({classes.filter((c) => c.status === 'ACTIVE').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('INACTIVE')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    statusFilter === 'INACTIVE'
+                      ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  임시휴강 ({classes.filter((c) => c.status === 'INACTIVE').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('CLOSED')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    statusFilter === 'CLOSED'
+                      ? 'bg-white dark:bg-slate-900 text-slate-500 shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  폐강 ({classes.filter((c) => c.status === 'CLOSED').length})
+                </button>
+              </div>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-72">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <Search className="w-3.5 h-3.5" />
+            {/* Bottom Rows: Subject, Grade, Day Filters */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5 text-xs">
+              {/* Row 1: Subject & Grade */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Subject Filter */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 mr-1 font-medium text-[11px]">과목 구분:</span>
+                    {['ALL', '수학', '영어', '국어', '과학', 'OTHER'].map((subj) => (
+                      <button
+                        key={subj}
+                        type="button"
+                        onClick={() => setSubjectFilter(subj)}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-xs font-semibold ${
+                          subjectFilter === subj
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {subj === 'ALL' ? '전체 과목' : subj === 'OTHER' ? '기타 과목' : subj}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Grade Filter */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 mr-1 font-medium text-[11px]">대상 학년:</span>
+                    {[
+                      { id: 'ALL', label: '전체 학년' },
+                      { id: 'ELEMENTARY', label: '초등' },
+                      { id: 'MIDDLE', label: '중등' },
+                      { id: 'HIGH', label: '고등' },
+                    ].map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setGradeFilter(g.id)}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-xs font-semibold ${
+                          gradeFilter === g.id
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reset Filters */}
+                {(searchTerm || statusFilter !== 'ALL' || subjectFilter !== 'ALL' || gradeFilter !== 'ALL' || dayFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('ALL');
+                      setSubjectFilter('ALL');
+                      setGradeFilter('ALL');
+                      setDayFilter('ALL');
+                    }}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>필터 초기화</span>
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                placeholder="반 명칭, 과목, 학년 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+              {/* Row 2: Day/Schedule Filter */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-slate-400 mr-1 font-medium text-[11px]">수업 요일:</span>
+                {[
+                  { id: 'ALL', label: '전체 요일' },
+                  { id: 'MON', label: '월' },
+                  { id: 'TUE', label: '화' },
+                  { id: 'WED', label: '수' },
+                  { id: 'THU', label: '목' },
+                  { id: 'FRI', label: '금' },
+                  { id: 'SAT', label: '토' },
+                  { id: 'SUN', label: '일' },
+                  { id: 'WEEKDAY', label: '평일반' },
+                  { id: 'WEEKEND', label: '주말반' },
+                ].map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setDayFilter(d.id)}
+                    className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer text-[11px] font-semibold ${
+                      dayFilter === d.id
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1116,7 +1290,10 @@ export default function ClassesPage() {
 
                 <form onSubmit={handleEnrollStudent} noValidate className="flex flex-col sm:flex-row gap-2.5">
                   {/* Searchable Student Autocomplete Combobox */}
-                  <div ref={studentSearchRef} className="relative flex-1">
+                  <div
+                    ref={studentSearchRef}
+                    className={`relative flex-1 ${isStudentDropdownOpen ? 'z-50' : 'z-20'}`}
+                  >
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
@@ -1157,7 +1334,7 @@ export default function ClassesPage() {
 
                     {/* Autocomplete Dropdown List */}
                     {isStudentDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="absolute top-full left-0 right-0 mt-1.5 z-[60] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100">
                         {allStudents
                           .filter((s) => s.status === 'ACTIVE')
                           .filter((s) => {
@@ -1289,21 +1466,26 @@ export default function ClassesPage() {
                     현재 이 반에 배정된 학생이 없습니다. 위에서 학생을 배정해주세요.
                   </div>
                 ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
-                          <th className="py-2.5 px-3">학생명</th>
+                          <th className="py-2.5 px-3 rounded-tl-2xl">학생명</th>
                           <th className="py-2.5 px-3">학년/학교</th>
                           <th className="py-2.5 px-3">학부모 연락처</th>
                           <th className="py-2.5 px-3">수강 시작일</th>
                           <th className="py-2.5 px-3">수강 상태</th>
-                          <th className="py-2.5 px-3 text-right">관리</th>
+                          <th className="py-2.5 px-3 text-right rounded-tr-2xl">관리</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                         {enrollments.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <tr
+                            key={item.id}
+                            className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/30 ${
+                              activeEnrollmentStatusRowId === item.id ? 'relative z-50' : 'relative z-10'
+                            }`}
+                          >
                             <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
                               {item.student.name}
                             </td>
@@ -1316,36 +1498,135 @@ export default function ClassesPage() {
                             <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">
                               {new Date(item.startDate).toLocaleDateString('ko-KR')}
                             </td>
-                            <td className="py-2.5 px-3">
-                              <select
-                                value={item.status}
-                                onChange={(e) =>
-                                  handleUpdateEnrollmentStatus(item.id, e.target.value as EnrollmentStatus)
-                                }
-                                className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${
-                                  item.status === 'ENROLLED'
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                    : item.status === 'COMPLETED'
-                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                            <td
+                              className={`py-2.5 px-3 ${
+                                activeEnrollmentStatusRowId === item.id ? 'relative z-50' : 'relative z-10'
+                              }`}
+                            >
+                              <div
+                                className={`relative inline-block ${
+                                  activeEnrollmentStatusRowId === item.id ? 'z-50' : ''
                                 }`}
                               >
-                                <option value="ENROLLED">수강중</option>
-                                <option value="COMPLETED">종강 (수료)</option>
-                                <option value="DROPPED">중도하차 (퇴반)</option>
-                                <option value="PAUSED">일시정지</option>
-                              </select>
-                            </td>
-                            <td className="py-2.5 px-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveEnrollment(item.id, item.student.name)}
-                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    if (activeEnrollmentStatusRowId === item.id) {
+                                      setActiveEnrollmentStatusRowId(null);
+                                    } else {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      const spaceBelow = window.innerHeight - rect.bottom;
+                                      // Default downward; only flip upward if space below is genuinely tight (< 170px) and more space above
+                                      setEnrollmentStatusDropdownDirection(
+                                        spaceBelow < 170 && rect.top > spaceBelow ? 'up' : 'down'
+                                      );
+                                      setActiveEnrollmentStatusRowId(item.id);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                                    item.status === 'ENROLLED'
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                                      : item.status === 'COMPLETED'
+                                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60'
+                                      : item.status === 'PAUSED'
+                                      ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                                      : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80 hover:bg-rose-100 dark:hover:bg-rose-900/60'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      item.status === 'ENROLLED'
+                                        ? 'bg-emerald-500'
+                                        : item.status === 'COMPLETED'
+                                        ? 'bg-blue-500'
+                                        : item.status === 'PAUSED'
+                                        ? 'bg-amber-500'
+                                        : 'bg-rose-500'
+                                    }`}
+                                  />
+                                  <span>
+                                    {item.status === 'ENROLLED'
+                                      ? '수강중'
+                                      : item.status === 'COMPLETED'
+                                      ? '종강'
+                                      : item.status === 'PAUSED'
+                                      ? '일시정지'
+                                      : '중도하차'}
+                                  </span>
+                                  <ChevronDown className="w-3 h-3 opacity-60" />
+                                </button>
+
+                                {activeEnrollmentStatusRowId === item.id && (
+                                  <div
+                                    ref={enrollmentRowStatusRef}
+                                    className={`absolute ${
+                                      enrollmentStatusDropdownDirection === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                                    } left-0 z-[60] w-36 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-100`}
+                                  >
+                                      {[
+                                        {
+                                          id: 'ENROLLED',
+                                          label: '수강중',
+                                          dot: 'bg-emerald-500',
+                                          activeClass:
+                                            'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300',
+                                        },
+                                        {
+                                          id: 'COMPLETED',
+                                          label: '종강 (수료)',
+                                          dot: 'bg-blue-500',
+                                          activeClass:
+                                            'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',
+                                        },
+                                        {
+                                          id: 'PAUSED',
+                                          label: '일시정지',
+                                          dot: 'bg-amber-500',
+                                          activeClass:
+                                            'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300',
+                                        },
+                                        {
+                                          id: 'DROPPED',
+                                          label: '중도하차 (퇴반)',
+                                          dot: 'bg-rose-500',
+                                          activeClass:
+                                            'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300',
+                                        },
+                                      ].map((opt) => (
+                                        <button
+                                          key={opt.id}
+                                          type="button"
+                                          onClick={() => {
+                                            handleUpdateEnrollmentStatus(
+                                              item.id,
+                                              opt.id as EnrollmentStatus
+                                            );
+                                            setActiveEnrollmentStatusRowId(null);
+                                          }}
+                                          className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                                            item.status === opt.id
+                                              ? `${opt.activeClass} font-bold`
+                                              : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                          }`}
+                                        >
+                                          <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
+                                          <span>{opt.label}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEnrollment(item.id, item.student.name)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
                         ))}
                       </tbody>
                     </table>
@@ -1361,7 +1642,7 @@ export default function ClassesPage() {
                 onClick={() => setIsEnrollmentModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer"
               >
-                닫기 (ESC)
+                닫기
               </button>
             </div>
           </div>

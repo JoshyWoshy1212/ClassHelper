@@ -142,13 +142,18 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Navigation Tabs */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
               <Link
                 href="/dashboard"
                 className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 transition-colors"
               >
                 대시보드
+              </Link>
+              <Link
+                href="/students"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                원생 관리
               </Link>
               <Link
                 href="/classes"
@@ -160,7 +165,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* If SUPER_ADMIN, show button to return to /admin */}
             {user.role === 'SUPER_ADMIN' && (
               <Link
                 href="/admin"
@@ -171,10 +175,8 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            {/* Theme Toggle Button */}
             <ThemeToggle />
 
-            {/* User Info */}
             <div className="hidden md:flex flex-col items-end mr-0.5">
               <span className="text-xs font-bold text-slate-900 dark:text-white">{user.name}</span>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">{user.email}</span>
@@ -186,7 +188,6 @@ export default function DashboardPage() {
               {roleBadge.label}
             </span>
 
-            {/* Logout Button */}
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-2xs"
@@ -198,14 +199,10 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Content Body with Vignette Dot Pattern */}
       <main className="flex-1 relative overflow-hidden py-8">
-        {/* Vignette Dot Surround Pattern */}
         <div className="absolute inset-0 bg-dot-vignette pointer-events-none z-0" />
 
-        {/* Foreground: Dashboard Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 relative z-10">
-        {/* Welcome Card */}
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -223,15 +220,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 4 Core Domain Feature Cards */}
         <div>
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-1.5">
             <span>핵심 4대 관리 기능</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {/* 1. 학생 관리 */}
-            <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm transition-all shadow-xs flex flex-col justify-between">
+            <Link
+              href="/students"
+              className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm transition-all shadow-xs flex flex-col justify-between"
+            >
               <div>
                 <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3">
                   <Users className="w-4 h-4" />
@@ -244,12 +242,11 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
-                <span>API 구축 완료</span>
+                <span>원생 관리 바로가기</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </div>
-            </div>
+            </Link>
 
-            {/* 2. 반 및 수강 관리 */}
             <Link
               href="/classes"
               className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700/60 hover:shadow-md transition-all shadow-xs flex flex-col justify-between group cursor-pointer"
