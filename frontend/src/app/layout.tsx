@@ -17,6 +17,11 @@ import { QueryProvider } from "@/providers/query-provider";
 export const metadata: Metadata = {
   title: "ClassHelper - 올인원 학원 통합 관리 플랫폼",
   description: "학원 원생 출결 관리, 수업 진도 및 과제 체크, 수강료 납부 현황 관리 올인원 솔루션",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
